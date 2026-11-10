@@ -1,1 +1,1 @@
-alabalanica
+dobur vecher
