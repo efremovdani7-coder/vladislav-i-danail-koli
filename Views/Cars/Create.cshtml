@@ -1,0 +1,109 @@
+@model CarEntry
+@{
+    ViewData["Title"] = "Добави автомобил";
+}
+
+<h2 class="mb-4"><i class="bi bi-plus-circle me-2"></i>Добави нов автомобил</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <h5 class="mb-3 text-primary"><i class="bi bi-car-front me-2"></i>Основни данни</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="CarBrandId" class="form-label"></label>
+                            <select asp-for="CarBrandId" class="form-select" asp-items="@(ViewBag.Brands as SelectList)">
+                                <option value="">— Избери марка —</option>
+                            </select>
+                            <span asp-validation-for="CarBrandId" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Model" class="form-label"></label>
+                            <input asp-for="Model" class="form-control" placeholder="напр. Corolla, 3 Series..." />
+                            <span asp-validation-for="Model" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Year" class="form-label"></label>
+                            <input asp-for="Year" type="number" class="form-control" placeholder="2020" />
+                            <span asp-validation-for="Year" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Mileage" class="form-label"></label>
+                            <input asp-for="Mileage" type="number" class="form-control" placeholder="150000" />
+                            <span asp-validation-for="Mileage" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="ReliabilityRating" class="form-label"></label>
+                            <input asp-for="ReliabilityRating" type="number" min="1" max="10" class="form-control" placeholder="8" />
+                            <span asp-validation-for="ReliabilityRating" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 text-primary"><i class="bi bi-wrench me-2"></i>Технически данни</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label asp-for="EngineType" class="form-label"></label>
+                            <select asp-for="EngineType" class="form-select" asp-items="Html.GetEnumSelectList<EngineType>()">
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="EngineDisplacement" class="form-label"></label>
+                            <input asp-for="EngineDisplacement" type="number" step="0.1" class="form-control" placeholder="2.0" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Transmission" class="form-label"></label>
+                            <select asp-for="Transmission" class="form-select" asp-items="Html.GetEnumSelectList<TransmissionType>()">
+                            </select>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 text-primary"><i class="bi bi-chat-text me-2"></i>Опит и мнение</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="Pros" class="form-label"></label>
+                            <textarea asp-for="Pros" class="form-control" rows="3" placeholder="Какво ви харесва в тази кола..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Cons" class="form-label"></label>
+                            <textarea asp-for="Cons" class="form-control" rows="3" placeholder="Какво не ви харесва..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="CommonIssues" class="form-label"></label>
+                            <textarea asp-for="CommonIssues" class="form-control" rows="3" placeholder="Познати проблеми, дефекти, слабости..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Comment" class="form-label"></label>
+                            <textarea asp-for="Comment" class="form-control" rows="4" placeholder="Общ коментар за автомобила..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Добави
+                        </button>
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-lg">Отказ</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mt-3 mt-lg-0">
+        <div class="card border-0 shadow-sm bg-light">
+            <div class="card-body">
+                <h5><i class="bi bi-info-circle me-2"></i>Съвети</h5>
+                <ul class="mb-0">
+                    <li>Бъди обективен в оценката си</li>
+                    <li>Опиши реалния си опит с колата</li>
+                    <li>Посочи конкретни проблеми, ако има такива</li>
+                    <li>Оценка 10 = перфектна надеждност, 1 = постоянно се чупи</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

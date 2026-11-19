@@ -1,0 +1,56 @@
+@model List<CarBrand>
+@{
+    ViewData["Title"] = "Управление на марки";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-action="Index">Админ панел</a></li>
+        <li class="breadcrumb-item active">Марки</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4"><i class="bi bi-tags me-2"></i>Марки автомобили (@Model.Count)</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Марка</th>
+                            <th>Брой записи</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var brand in Model)
+                        {
+                            <tr>
+                                <td>@brand.Id</td>
+                                <td class="fw-semibold">@brand.Name</td>
+                                <td>@brand.CarEntries.Count</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mt-3 mt-lg-0">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5><i class="bi bi-plus-circle me-2"></i>Добави нова марка</h5>
+                <form asp-action="AddBrand" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <input name="name" class="form-control" placeholder="Име на марката" required />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Добави</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

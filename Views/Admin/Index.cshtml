@@ -1,0 +1,103 @@
+@model AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Админ панел";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-shield-lock me-2"></i>Админ панел</h2>
+    <div>
+        <span class="badge bg-primary fs-6 me-2">@Model.TotalEntries записа</span>
+        <span class="badge bg-success fs-6">@Model.TotalUsers потребители</span>
+    </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Търси по марка/модел/потребител</label>
+                    <input name="searchTerm" value="@Model.SearchTerm" class="form-control" placeholder="Търсене..." />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Филтър по потребител</label>
+                    <select name="filterUser" class="form-select">
+                        <option value="">— Всички —</option>
+                        @foreach (var user in Model.AllUsers)
+                        {
+                            <option value="@user.Id" selected="@(Model.FilterUser == user.Id)">@user.Nickname (@user.Email)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100"><i class="bi bi-search me-2"></i>Филтрирай</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Entries Table -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Марка / Модел</th>
+                    <th>Година</th>
+                    <th>Оценка</th>
+                    <th>Добавено от</th>
+                    <th>Дата</th>
+                    <th class="text-end">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model.AllEntries)
+                {
+                    <tr>
+                        <td>@entry.Id</td>
+                        <td class="fw-semibold">@entry.CarBrand?.Name @entry.Model</td>
+                        <td>@entry.Year</td>
+                        <td>
+                            <span class="badge @(entry.ReliabilityRating >= 7 ? "bg-success" : entry.ReliabilityRating >= 4 ? "bg-warning text-dark" : "bg-danger")">
+                                @entry.ReliabilityRating/10
+                            </span>
+                        </td>
+                        <td>
+                            <small>@entry.User?.Nickname</small>
+                        </td>
+                        <td><small>@entry.CreatedAt.ToString("dd.MM.yyyy")</small></td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a asp-controller="Cars" asp-action="Details" asp-route-id="@entry.Id"
+                                   class="btn btn-outline-primary" title="Преглед">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-action="EditEntry" asp-route-id="@entry.Id"
+                                   class="btn btn-outline-warning" title="Редактирай">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form asp-action="DeleteEntry" asp-route-id="@entry.Id" method="post" class="d-inline"
+                                      onsubmit="return confirm('Сигурни ли сте?')">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-outline-danger btn-sm" title="Изтрий">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (!Model.AllEntries.Any())
+{
+    <div class="text-center py-4">
+        <p class="text-muted">Няма намерени записи.</p>
+    </div>
+}

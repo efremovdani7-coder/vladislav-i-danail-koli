@@ -1,0 +1,90 @@
+@model CarEntry
+@{
+    ViewData["Title"] = "Админ — Редакция на запис";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-action="Index">Админ панел</a></li>
+        <li class="breadcrumb-item active">Редакция #@Model.Id</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4"><i class="bi bi-pencil-square me-2"></i>Редакция: @Model.CarBrand?.Name @Model.Model</h2>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Добавено от: <strong>@Model.User?.Nickname</strong> на @Model.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+</div>
+
+<div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form asp-action="EditEntry" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="CarBrandId" class="form-label"></label>
+                        <select asp-for="CarBrandId" class="form-select" asp-items="@(ViewBag.Brands as SelectList)"></select>
+                        <span asp-validation-for="CarBrandId" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Model" class="form-label"></label>
+                        <input asp-for="Model" class="form-control" />
+                        <span asp-validation-for="Model" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Year" class="form-label"></label>
+                        <input asp-for="Year" type="number" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Mileage" class="form-label"></label>
+                        <input asp-for="Mileage" type="number" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="ReliabilityRating" class="form-label"></label>
+                        <input asp-for="ReliabilityRating" type="number" min="1" max="10" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="EngineType" class="form-label"></label>
+                        <select asp-for="EngineType" class="form-select" asp-items="Html.GetEnumSelectList<EngineType>()"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="EngineDisplacement" class="form-label"></label>
+                        <input asp-for="EngineDisplacement" type="number" step="0.1" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Transmission" class="form-label"></label>
+                        <select asp-for="Transmission" class="form-select" asp-items="Html.GetEnumSelectList<TransmissionType>()"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Pros" class="form-label"></label>
+                        <textarea asp-for="Pros" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Cons" class="form-label"></label>
+                        <textarea asp-for="Cons" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="CommonIssues" class="form-label"></label>
+                        <textarea asp-for="CommonIssues" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Comment" class="form-label"></label>
+                        <textarea asp-for="Comment" class="form-control" rows="4"></textarea>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-warning btn-lg">
+                        <i class="bi bi-check me-2"></i>Запази
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary btn-lg">Отказ</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

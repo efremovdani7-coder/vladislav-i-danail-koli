@@ -1,0 +1,69 @@
+/* ==========================================
+   АвтоНадеждност.бг — Custom Styles
+   ========================================== */
+
+/* Smooth transitions */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.car-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Rating badge sizes */
+.badge.rounded-pill.fs-6 {
+    min-width: 50px;
+}
+
+/* Navbar brand */
+.navbar-brand {
+    font-size: 1.3rem;
+}
+
+/* Hero section responsive */
+@media (max-width: 768px) {
+    .display-5 {
+        font-size: 1.8rem;
+    }
+    .fs-5 {
+        font-size: 1rem !important;
+    }
+}
+
+/* Table responsive on mobile */
+@media (max-width: 576px) {
+    .table th,
+    .table td {
+        font-size: 0.85rem;
+        padding: 0.5rem;
+    }
+}
+
+/* Footer */
+footer a:hover {
+    color: #fff !important;
+}
+
+/* Form focus styles */
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* Stat cards on home */
+.card .display-4 {
+    line-height: 1;
+}
+
+/* Smooth scroll */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Better body font */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}

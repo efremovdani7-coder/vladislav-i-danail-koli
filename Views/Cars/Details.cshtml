@@ -1,0 +1,142 @@
+@model CarEntry
+@{
+    ViewData["Title"] = $"{Model.CarBrand?.Name} {Model.Model} ({Model.Year})";
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Cars" asp-action="Index">Всички коли</a></li>
+        <li class="breadcrumb-item active">@Model.CarBrand?.Name @Model.Model</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <h2 class="mb-1">@Model.CarBrand?.Name @Model.Model</h2>
+                        <p class="text-muted fs-5">@Model.Year г.</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="display-4 fw-bold @(Model.ReliabilityRating >= 7 ? "text-success" : Model.ReliabilityRating >= 4 ? "text-warning" : "text-danger")">
+                            @Model.ReliabilityRating<small class="fs-5">/10</small>
+                        </div>
+                        <small class="text-muted">Надеждност</small>
+                    </div>
+                </div>
+
+                <hr />
+
+                <!-- Specs -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <i class="bi bi-speedometer2 fs-3 text-primary"></i>
+                            <div class="fw-semibold mt-1">@Model.Mileage.ToString("N0") км</div>
+                            <small class="text-muted">Пробег</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <i class="bi bi-fuel-pump fs-3 text-primary"></i>
+                            <div class="fw-semibold mt-1">@Html.DisplayFor(m => m.EngineType)</div>
+                            <small class="text-muted">Двигател</small>
+                        </div>
+                    </div>
+                    @if (Model.EngineDisplacement.HasValue)
+                    {
+                        <div class="col-6 col-md-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <i class="bi bi-wrench fs-3 text-primary"></i>
+                                <div class="fw-semibold mt-1">@Model.EngineDisplacement.Value.ToString("F1") л</div>
+                                <small class="text-muted">Обем</small>
+                            </div>
+                        </div>
+                    }
+                    <div class="col-6 col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <i class="bi bi-gear fs-3 text-primary"></i>
+                            <div class="fw-semibold mt-1">@Html.DisplayFor(m => m.Transmission)</div>
+                            <small class="text-muted">Кутия</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pros & Cons -->
+                @if (!string.IsNullOrEmpty(Model.Pros))
+                {
+                    <h5 class="text-success"><i class="bi bi-hand-thumbs-up me-2"></i>Предимства</h5>
+                    <p class="mb-3">@Model.Pros</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.Cons))
+                {
+                    <h5 class="text-danger"><i class="bi bi-hand-thumbs-down me-2"></i>Недостатъци</h5>
+                    <p class="mb-3">@Model.Cons</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.CommonIssues))
+                {
+                    <h5 class="text-warning"><i class="bi bi-exclamation-triangle me-2"></i>Чести проблеми</h5>
+                    <p class="mb-3">@Model.CommonIssues</p>
+                }
+                @if (!string.IsNullOrEmpty(Model.Comment))
+                {
+                    <h5><i class="bi bi-chat-text me-2"></i>Коментар</h5>
+                    <p>@Model.Comment</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4 mt-3 mt-lg-0">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="text-muted">Добавено от</h6>
+                <p class="fs-5 mb-1">
+                    <i class="bi bi-person-circle me-2"></i>@Model.User?.Nickname
+                </p>
+                <small class="text-muted">
+                    <i class="bi bi-calendar me-1"></i>@Model.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                </small>
+                @if (Model.UpdatedAt.HasValue)
+                {
+                    <br />
+                    <small class="text-muted">
+                        <i class="bi bi-pencil me-1"></i>Редактирано: @Model.UpdatedAt.Value.ToString("dd.MM.yyyy HH:mm")
+                    </small>
+                }
+            </div>
+        </div>
+
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            var currentUserId = UserManager.GetUserId(User);
+            @if (Model.UserId == currentUserId || User.IsInRole("Admin"))
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Действия</h6>
+                        <div class="d-grid gap-2">
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
+                                <i class="bi bi-pencil me-2"></i>Редактирай
+                            </a>
+                            <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                                  onsubmit="return confirm('Сигурни ли сте, че искате да изтриете този запис?')">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger w-100">
+                                    <i class="bi bi-trash me-2"></i>Изтрий
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @inject UserManager<ApplicationUser> UserManager
+}
