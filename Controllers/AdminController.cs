@@ -1,14 +1,15 @@
+using System.Text;
 using CarReliability.Data;
 using CarReliability.Models;
 using CarReliability.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace CarReliability.Controllers;
 
+/// <summary>US06: администраторски панел — модерация на данни, коментари, потребители и история на влизанията.</summary>
 [Authorize(Roles = "Admin")]
 public class AdminController : Controller
 {
@@ -21,146 +22,112 @@ public class AdminController : Controller
         _userManager = userManager;
     }
 
-    // GET: Admin
+    // ---------- Отзиви ----------
+
     public async Task<IActionResult> Index(string? searchTerm, string? filterUser)
     {
         var query = _context.CarEntries
-            .Include(c => c.CarBrand)
-            .Include(c => c.User)
+            .Include(e => e.CarModel).ThenInclude(m => m!.CarBrand)
+            .Include(e => e.CarEngine)
+            .Include(e => e.User)
             .AsQueryable();
 
-        if (!string.IsNullOrEmpty(searchTerm))
+        if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            query = query.Where(c =>
-                c.CarBrand!.Name.Contains(searchTerm) ||
-                c.Model.Contains(searchTerm) ||
-                c.User!.Nickname.Contains(searchTerm));
+            var t = searchTerm.Trim().ToLower();
+            query = query.Where(e =>
+                (e.CarModel!.CarBrand!.Name + " " + e.CarModel.Name).ToLower().Contains(t) ||
+                e.User!.Nickname.ToLower().Contains(t));
         }
-
         if (!string.IsNullOrEmpty(filterUser))
-        {
-            query = query.Where(c => c.UserId == filterUser);
-        }
+            query = query.Where(e => e.UserId == filterUser);
 
-        var vm = new AdminDashboardViewModel
+        var today = DateTime.UtcNow.Date;
+        return View(new AdminDashboardViewModel
         {
-            AllEntries = await query.OrderByDescending(c => c.CreatedAt).ToListAsync(),
-            AllUsers = await _context.Users.Cast<ApplicationUser>().ToListAsync(),
+            Entries = await query.OrderByDescending(e => e.CreatedAt).Take(200).ToListAsync(),
+            AllUsers = await _context.Users.OrderBy(u => u.Nickname).ToListAsync(),
             TotalEntries = await _context.CarEntries.CountAsync(),
             TotalUsers = await _context.Users.CountAsync(),
+            TotalComments = await _context.ModelComments.CountAsync(),
+            LoginsToday = await _context.LoginRecords.CountAsync(l => l.LoggedAt >= today && l.Succeeded),
             SearchTerm = searchTerm,
             FilterUser = filterUser
-        };
-
-        return View(vm);
+        });
     }
 
-    // GET: Admin/EditEntry/5
-    public async Task<IActionResult> EditEntry(int? id)
-    {
-        if (id == null) return NotFound();
-
-        var entry = await _context.CarEntries
-            .Include(c => c.CarBrand)
-            .Include(c => c.User)
-            .FirstOrDefaultAsync(c => c.Id == id);
-
-        if (entry == null) return NotFound();
-
-        ViewBag.Brands = new SelectList(
-            await _context.CarBrands.OrderBy(b => b.Name).ToListAsync(), "Id", "Name", entry.CarBrandId);
-        return View(entry);
-    }
-
-    // POST: Admin/EditEntry/5
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditEntry(int id, CarEntry entry)
-    {
-        if (id != entry.Id) return NotFound();
-
-        var existing = await _context.CarEntries.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
-        if (existing == null) return NotFound();
-
-        entry.UserId = existing.UserId;
-        entry.CreatedAt = existing.CreatedAt;
-        entry.UpdatedAt = DateTime.UtcNow;
-
-        ModelState.Remove("UserId");
-        ModelState.Remove("User");
-        ModelState.Remove("CarBrand");
-
-        if (ModelState.IsValid)
-        {
-            _context.Update(entry);
-            await _context.SaveChangesAsync();
-            TempData["Success"] = "Записът е обновен от администратора.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        ViewBag.Brands = new SelectList(
-            await _context.CarBrands.OrderBy(b => b.Name).ToListAsync(), "Id", "Name", entry.CarBrandId);
-        return View(entry);
-    }
-
-    // POST: Admin/DeleteEntry/5
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteEntry(int id)
     {
         var entry = await _context.CarEntries.FindAsync(id);
         if (entry == null) return NotFound();
-
         _context.CarEntries.Remove(entry);
         await _context.SaveChangesAsync();
         TempData["Success"] = "Записът е изтрит от администратора.";
         return RedirectToAction(nameof(Index));
     }
 
-    // GET: Admin/Users
-    public async Task<IActionResult> Users()
+    // ---------- Коментари ----------
+
+    public async Task<IActionResult> Comments()
     {
-        var users = await _context.Users.Cast<ApplicationUser>().ToListAsync();
-        var userList = new List<(ApplicationUser User, IList<string> Roles, int EntriesCount)>();
-
-        foreach (var user in users)
-        {
-            var roles = await _userManager.GetRolesAsync(user);
-            var entriesCount = await _context.CarEntries.CountAsync(c => c.UserId == user.Id);
-            userList.Add((user, roles, entriesCount));
-        }
-
-        return View(userList);
+        var comments = await _context.ModelComments
+            .Include(c => c.User)
+            .Include(c => c.CarModel).ThenInclude(m => m!.CarBrand)
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(300)
+            .ToListAsync();
+        return View(comments);
     }
 
-    // POST: Admin/DeleteUser
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteUser(string id)
+    public async Task<IActionResult> DeleteComment(int id)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
-
-        // Don't allow deleting yourself
-        if (user.Id == _userManager.GetUserId(User))
+        var comment = await _context.ModelComments.FindAsync(id);
+        if (comment != null)
         {
-            TempData["Error"] = "Не можете да изтриете собствения си акаунт!";
-            return RedirectToAction(nameof(Users));
+            _context.ModelComments.Remove(comment);
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "Коментарът е изтрит.";
         }
-
-        await _userManager.DeleteAsync(user);
-        TempData["Success"] = $"Потребител {user.Nickname} е изтрит.";
-        return RedirectToAction(nameof(Users));
+        return RedirectToAction(nameof(Comments));
     }
 
-    // POST: Admin/BlockUser (US06)
+    // ---------- Потребители ----------
+
+    public async Task<IActionResult> Users()
+    {
+        var users = await _context.Users.OrderBy(u => u.Nickname).ToListAsync();
+        var entryCounts = await _context.CarEntries.GroupBy(e => e.UserId)
+            .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+        var lastLogins = await _context.LoginRecords.Where(l => l.Succeeded && l.UserId != null)
+            .GroupBy(l => l.UserId!)
+            .Select(g => new { g.Key, Last = g.Max(l => l.LoggedAt) })
+            .ToDictionaryAsync(x => x.Key, x => x.Last);
+
+        var rows = new List<AdminUserRow>();
+        foreach (var u in users)
+        {
+            rows.Add(new AdminUserRow
+            {
+                User = u,
+                Roles = await _userManager.GetRolesAsync(u),
+                EntriesCount = entryCounts.GetValueOrDefault(u.Id),
+                LastLogin = lastLogins.TryGetValue(u.Id, out var last) ? last : null,
+                IsBlocked = u.LockoutEnd.HasValue && u.LockoutEnd.Value > DateTimeOffset.UtcNow
+            });
+        }
+        return View(rows);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> BlockUser(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return NotFound();
-
         if (user.Id == _userManager.GetUserId(User) || await _userManager.IsInRoleAsync(user, "Admin"))
         {
             TempData["Error"] = "Администратори не могат да бъдат блокирани.";
@@ -169,58 +136,121 @@ public class AdminController : Controller
 
         await _userManager.SetLockoutEnabledAsync(user, true);
         await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-        // Invalidate the user's login cookie so they are signed out
-        await _userManager.UpdateSecurityStampAsync(user);
-
+        await _userManager.UpdateSecurityStampAsync(user); // изхвърля потребителя от сайта
         TempData["Success"] = $"Потребител {user.Nickname} е блокиран.";
         return RedirectToAction(nameof(Users));
     }
 
-    // POST: Admin/UnblockUser (US06)
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UnblockUser(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return NotFound();
-
         await _userManager.SetLockoutEndDateAsync(user, null);
         await _userManager.ResetAccessFailedCountAsync(user);
-
         TempData["Success"] = $"Потребител {user.Nickname} е отблокиран.";
         return RedirectToAction(nameof(Users));
     }
 
-    // GET: Admin/Brands
-    public async Task<IActionResult> Brands()
-    {
-        var brands = await _context.CarBrands
-            .Include(b => b.CarEntries)
-            .OrderBy(b => b.Name)
-            .ToListAsync();
-        return View(brands);
-    }
-
-    // POST: Admin/AddBrand
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddBrand(string name)
+    public async Task<IActionResult> DeleteUser(string id)
     {
-        if (string.IsNullOrWhiteSpace(name))
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null) return NotFound();
+        if (user.Id == _userManager.GetUserId(User) || await _userManager.IsInRoleAsync(user, "Admin"))
         {
-            TempData["Error"] = "Името на марката не може да е празно.";
-            return RedirectToAction(nameof(Brands));
+            TempData["Error"] = "Не можете да изтриете администратор.";
+            return RedirectToAction(nameof(Users));
         }
+        await _userManager.DeleteAsync(user);
+        TempData["Success"] = $"Потребител {user.Nickname} е изтрит заедно с данните си.";
+        return RedirectToAction(nameof(Users));
+    }
 
-        if (await _context.CarBrands.AnyAsync(b => b.Name == name))
+    // ---------- История на влизанията ----------
+
+    public async Task<IActionResult> Logins(string? search, string? status, DateTime? from, DateTime? to, int page = 1)
+    {
+        const int pageSize = 50;
+        var query = FilterLogins(search, status, from, to);
+
+        var vm = new LoginHistoryViewModel
         {
-            TempData["Error"] = "Тази марка вече съществува.";
-            return RedirectToAction(nameof(Brands));
-        }
+            Search = search,
+            Status = status,
+            From = from,
+            To = to,
+            TotalRecords = await query.CountAsync(),
+            SuccessCount = await query.CountAsync(l => l.Succeeded),
+            FailedCount = await query.CountAsync(l => !l.Succeeded)
+        };
+        vm.TotalPages = Math.Max(1, (int)Math.Ceiling(vm.TotalRecords / (double)pageSize));
+        vm.CurrentPage = Math.Clamp(page, 1, vm.TotalPages);
+        vm.Records = await query.OrderByDescending(l => l.LoggedAt)
+            .Skip((vm.CurrentPage - 1) * pageSize).Take(pageSize).ToListAsync();
+        return View(vm);
+    }
 
-        _context.CarBrands.Add(new CarBrand { Name = name });
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteLogin(int id)
+    {
+        var record = await _context.LoginRecords.FindAsync(id);
+        if (record != null)
+        {
+            _context.LoginRecords.Remove(record);
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "Записът е изтрит.";
+        }
+        return RedirectToAction(nameof(Logins));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearLogins(int olderThanDays)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-Math.Max(0, olderThanDays));
+        var old = await _context.LoginRecords.Where(l => l.LoggedAt < cutoff).ToListAsync();
+        _context.LoginRecords.RemoveRange(old);
         await _context.SaveChangesAsync();
-        TempData["Success"] = $"Марката '{name}' е добавена.";
-        return RedirectToAction(nameof(Brands));
+        TempData["Success"] = olderThanDays == 0
+            ? $"Изтрити са всички {old.Count} записа."
+            : $"Изтрити са {old.Count} записа, по-стари от {olderThanDays} дни.";
+        return RedirectToAction(nameof(Logins));
+    }
+
+    public async Task<IActionResult> ExportLogins(string? search, string? status, DateTime? from, DateTime? to)
+    {
+        var records = await FilterLogins(search, status, from, to).OrderByDescending(l => l.LoggedAt).ToListAsync();
+        var sb = new StringBuilder();
+        sb.AppendLine("Дата и час;Имейл;Никнейм;Начин;Успешен;Причина;IP адрес;Браузър");
+        foreach (var r in records)
+        {
+            sb.AppendLine(string.Join(";", new[]
+            {
+                r.LoggedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss"), r.Login, r.Nickname ?? "", r.Method,
+                r.Succeeded ? "Да" : "Не", r.FailureReason ?? "", r.IpAddress ?? "", r.UserAgent ?? ""
+            }.Select(v => "\"" + v.Replace("\"", "\"\"") + "\"")));
+        }
+        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        return File(bytes, "text/csv", $"vlizaniya-{DateTime.Now:yyyy-MM-dd}.csv");
+    }
+
+    private IQueryable<LoginRecord> FilterLogins(string? search, string? status, DateTime? from, DateTime? to)
+    {
+        var query = _context.LoginRecords.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var t = search.Trim().ToLower();
+            query = query.Where(l => l.Login.ToLower().Contains(t) || (l.Nickname != null && l.Nickname.ToLower().Contains(t))
+                                     || (l.IpAddress != null && l.IpAddress.Contains(t)));
+        }
+        if (status == "ok") query = query.Where(l => l.Succeeded);
+        if (status == "failed") query = query.Where(l => !l.Succeeded);
+        if (from.HasValue) query = query.Where(l => l.LoggedAt >= from.Value.ToUniversalTime());
+        if (to.HasValue) query = query.Where(l => l.LoggedAt < to.Value.AddDays(1).ToUniversalTime());
+        return query;
     }
 }

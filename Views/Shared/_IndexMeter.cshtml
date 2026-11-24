@@ -1,0 +1,18 @@
+@model ReliabilityStats
+<div class="index-meter">
+    <div class="d-flex justify-content-between align-items-end mb-1">
+        <span class="text-body-secondary small">Индекс на надеждност</span>
+        @if (Model.HasData)
+        {
+            <span class="fs-2 fw-bold text-@Model.CssClass lh-1">@Model.Index<small class="fs-6 text-body-secondary">/100</small></span>
+        }
+        else
+        {
+            <span class="fs-5 text-body-secondary">няма данни</span>
+        }
+    </div>
+    <div class="progress" role="progressbar" aria-label="Индекс на надеждност" aria-valuenow="@Model.Index" aria-valuemin="0" aria-valuemax="100" style="height: 12px">
+        <div class="progress-bar bg-@Model.CssClass" style="width: @Model.Index%"></div>
+    </div>
+    <div class="small mt-1 text-@Model.CssClass fw-semibold">@Model.Level надеждност</div>
+</div>

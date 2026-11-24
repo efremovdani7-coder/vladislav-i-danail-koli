@@ -1,152 +1,127 @@
 @model CarEntry
+@inject UserManager<ApplicationUser> UserManager
 @{
-    ViewData["Title"] = $"{Model.CarBrand?.Name} {Model.Model} ({Model.Year})";
+    var brandName = Model.CarModel?.CarBrand?.Name;
+    var modelName = Model.CarModel?.Name;
+    ViewData["Title"] = $"{brandName} {modelName} ({Model.Year})";
+    var canEdit = User.Identity?.IsAuthenticated == true && (Model.UserId == UserManager.GetUserId(User) || User.IsInRole("Admin"));
+    var engine = Model.CarEngine;
 }
 
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-controller="Cars" asp-action="Index">Всички коли</a></li>
-        <li class="breadcrumb-item active">@Model.CarBrand?.Name @Model.Model</li>
+        <li class="breadcrumb-item"><a asp-controller="Brands" asp-action="Details" asp-route-id="@Model.CarModel?.CarBrandId">@brandName</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Models" asp-action="Details" asp-route-id="@Model.CarModelId">@modelName</a></li>
+        <li class="breadcrumb-item active">Отзив от @Model.User?.Nickname</li>
     </ol>
 </nav>
 
-<div class="row">
+<div class="row g-4">
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start flex-wrap">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                     <div>
-                        <h2 class="mb-1">@Model.CarBrand?.Name @Model.Model</h2>
-                        <p class="text-muted fs-5">@Model.Year г.</p>
+                        <h2 class="mb-1">@brandName @modelName</h2>
+                        <div class="text-body-secondary">@Model.CarGeneration?.DisplayName · произведен @Model.Year г.</div>
                     </div>
                     <div class="text-center">
-                        <div class="display-4 fw-bold @(Model.ReliabilityRating >= 7 ? "text-success" : Model.ReliabilityRating >= 4 ? "text-warning" : "text-danger")">
-                            @Model.ReliabilityRating<small class="fs-5">/10</small>
-                        </div>
-                        <small class="text-muted">Надеждност</small>
+                        <div class="display-5 fw-bold text-@(Model.ReliabilityRating >= 8 ? "success" : Model.ReliabilityRating >= 5 ? "warning" : "danger")">@Model.ReliabilityRating<small class="fs-5 text-body-secondary">/10</small></div>
+                        <small class="text-body-secondary">оценка на собственика</small>
                     </div>
                 </div>
 
                 <hr />
 
-                <!-- Specs -->
-                <div class="row g-3 mb-4">
-                    <div class="col-6 col-md-3">
-                        <div class="text-center p-3 bg-light rounded">
-                            <i class="bi bi-speedometer2 fs-3 text-primary"></i>
-                            <div class="fw-semibold mt-1">@Model.Mileage.ToString("N0") км</div>
-                            <small class="text-muted">Пробег</small>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="text-center p-3 bg-light rounded">
-                            <i class="bi bi-fuel-pump fs-3 text-primary"></i>
-                            <div class="fw-semibold mt-1">@Html.DisplayFor(m => m.EngineType)</div>
-                            <small class="text-muted">Двигател</small>
-                        </div>
-                    </div>
-                    @if (Model.EngineDisplacement.HasValue)
+                <div class="row g-2 mb-4">
+                    <div class="col-6 col-md-4"><div class="spec-tile"><i class="bi bi-speedometer2"></i><div class="fw-semibold mt-1">@Model.Mileage.ToString("N0") км</div><small class="text-body-secondary">пробег</small></div></div>
+                    <div class="col-6 col-md-4"><div class="spec-tile"><i class="bi bi-cash-coin"></i><div class="fw-semibold mt-1">@(Model.MaintenanceCost.HasValue ? Model.MaintenanceCost.Value.ToString("N0") + " €" : "—")</div><small class="text-body-secondary">поддръжка на година</small></div></div>
+                    @if (engine != null)
                     {
-                        <div class="col-6 col-md-3">
-                            <div class="text-center p-3 bg-light rounded">
-                                <i class="bi bi-wrench fs-3 text-primary"></i>
-                                <div class="fw-semibold mt-1">@Model.EngineDisplacement.Value.ToString("F1") л</div>
-                                <small class="text-muted">Обем</small>
-                            </div>
-                        </div>
-                    }
-                    <div class="col-6 col-md-3">
-                        <div class="text-center p-3 bg-light rounded">
-                            <i class="bi bi-gear fs-3 text-primary"></i>
-                            <div class="fw-semibold mt-1">@Html.DisplayFor(m => m.Transmission)</div>
-                            <small class="text-muted">Кутия</small>
-                        </div>
-                    </div>
-                    @if (Model.MaintenanceCost.HasValue)
-                    {
-                        <div class="col-6 col-md-3">
-                            <div class="text-center p-3 bg-light rounded">
-                                <i class="bi bi-cash-coin fs-3 text-primary"></i>
-                                <div class="fw-semibold mt-1">@Model.MaintenanceCost.Value.ToString("N0") €</div>
-                                <small class="text-muted">Поддръжка / год.</small>
-                            </div>
-                        </div>
+                        <div class="col-6 col-md-4"><div class="spec-tile"><i class="bi bi-fuel-pump"></i><div class="fw-semibold mt-1">@EnumText.Fuel(engine.FuelType)</div><small class="text-body-secondary">гориво</small></div></div>
+                        <div class="col-6 col-md-4"><div class="spec-tile"><i class="bi bi-cpu"></i><div class="fw-semibold mt-1 small">@engine.Name</div><small class="text-body-secondary">двигател</small></div></div>
+                        <div class="col-6 col-md-4"><div class="spec-tile"><i class="bi bi-gear-wide-connected"></i><div class="fw-semibold mt-1 small">@engine.Transmission</div><small class="text-body-secondary">скоростна кутия</small></div></div>
+                        <div class="col-6 col-md-4"><div class="spec-tile"><i class="bi bi-diagram-3"></i><div class="fw-semibold mt-1">@engine.DriveType</div><small class="text-body-secondary">задвижване</small></div></div>
                     }
                 </div>
 
-                <!-- Pros & Cons -->
-                @if (!string.IsNullOrEmpty(Model.Pros))
+                @if (engine != null && (engine.PowerHp.HasValue || engine.DisplacementCc.HasValue || engine.TorqueNm.HasValue))
                 {
-                    <h5 class="text-success"><i class="bi bi-hand-thumbs-up me-2"></i>Предимства</h5>
-                    <p class="mb-3">@Model.Pros</p>
+                    <p class="small text-body-secondary">
+                        <i class="bi bi-info-circle me-1"></i>Каталожни данни:
+                        @if (engine.DisplacementCc.HasValue) { <span>@engine.DisplacementCc.Value.ToString("N0") куб. см · </span> }
+                        @if (engine.PowerHp.HasValue) { <span>@engine.PowerHp к.с. · </span> }
+                        @if (engine.TorqueNm.HasValue) { <span>@engine.TorqueNm Nm</span> }
+                    </p>
                 }
-                @if (!string.IsNullOrEmpty(Model.Cons))
+
+                <h5 class="text-danger"><i class="bi bi-tools me-2"></i>Дефекти</h5>
+                @if (Model.Defects != DefectCategory.None)
                 {
-                    <h5 class="text-danger"><i class="bi bi-hand-thumbs-down me-2"></i>Недостатъци</h5>
-                    <p class="mb-3">@Model.Cons</p>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        @foreach (var d in EnumText.DefectNames(Model.Defects))
+                        {
+                            <span class="badge rounded-pill text-bg-danger">@d</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-success mb-2"><i class="bi bi-check-circle me-1"></i>Без посочени дефекти</p>
                 }
                 @if (!string.IsNullOrEmpty(Model.CommonIssues))
                 {
-                    <h5 class="text-warning"><i class="bi bi-exclamation-triangle me-2"></i>Чести проблеми</h5>
-                    <p class="mb-3">@Model.CommonIssues</p>
+                    <p class="mb-4">@Model.CommonIssues</p>
                 }
+
+                <div class="row g-3">
+                    @if (!string.IsNullOrEmpty(Model.Pros))
+                    {
+                        <div class="col-md-6"><h5 class="text-success"><i class="bi bi-hand-thumbs-up me-2"></i>Предимства</h5><p>@Model.Pros</p></div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Cons))
+                    {
+                        <div class="col-md-6"><h5 class="text-warning"><i class="bi bi-hand-thumbs-down me-2"></i>Недостатъци</h5><p>@Model.Cons</p></div>
+                    }
+                </div>
                 @if (!string.IsNullOrEmpty(Model.Comment))
                 {
                     <h5><i class="bi bi-chat-text me-2"></i>Коментар</h5>
-                    <p>@Model.Comment</p>
+                    <p class="mb-0">@Model.Comment</p>
                 }
             </div>
         </div>
     </div>
 
-    <!-- Sidebar -->
-    <div class="col-lg-4 mt-3 mt-lg-0">
+    <div class="col-lg-4">
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-                <h6 class="text-muted">Добавено от</h6>
-                <p class="fs-5 mb-1">
-                    <i class="bi bi-person-circle me-2"></i>@Model.User?.Nickname
-                </p>
-                <small class="text-muted">
-                    <i class="bi bi-calendar me-1"></i>@Model.CreatedAt.ToString("dd.MM.yyyy HH:mm")
-                </small>
+                <h6 class="text-body-secondary">Добавено от</h6>
+                <p class="fs-5 mb-1"><i class="bi bi-person-circle me-2 text-primary"></i>@Model.User?.Nickname</p>
+                <small class="text-body-secondary"><i class="bi bi-calendar me-1"></i>@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
                 @if (Model.UpdatedAt.HasValue)
                 {
-                    <br />
-                    <small class="text-muted">
-                        <i class="bi bi-pencil me-1"></i>Редактирано: @Model.UpdatedAt.Value.ToString("dd.MM.yyyy HH:mm")
-                    </small>
+                    <br /><small class="text-body-secondary"><i class="bi bi-pencil me-1"></i>Редактирано: @Model.UpdatedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                }
+                @if (User.Identity?.IsAuthenticated == true && Model.UserId != UserManager.GetUserId(User))
+                {
+                    <a asp-controller="Chat" asp-action="Index" asp-route-userId="@Model.UserId" class="btn btn-sm btn-outline-primary w-100 mt-3"><i class="bi bi-chat-dots me-1"></i>Пиши на @Model.User?.Nickname</a>
                 }
             </div>
         </div>
 
-        @if (User.Identity?.IsAuthenticated == true)
+        <a asp-controller="Models" asp-action="Details" asp-route-id="@Model.CarModelId" class="btn btn-primary w-100 mb-3"><i class="bi bi-graph-up me-1"></i>Статистика за @brandName @modelName</a>
+
+        @if (canEdit)
         {
-            var currentUserId = UserManager.GetUserId(User);
-            @if (Model.UserId == currentUserId || User.IsInRole("Admin"))
-            {
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body">
-                        <h6 class="text-muted">Действия</h6>
-                        <div class="d-grid gap-2">
-                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning">
-                                <i class="bi bi-pencil me-2"></i>Редактирай
-                            </a>
-                            <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
-                                  onsubmit="return confirm('Сигурни ли сте, че искате да изтриете този запис?')">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-outline-danger w-100">
-                                    <i class="bi bi-trash me-2"></i>Изтрий
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-grid gap-2">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-warning"><i class="bi bi-pencil me-2"></i>Редактирай</a>
+                    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Сигурни ли сте, че искате да изтриете този отзив?')">
+                        <button type="submit" class="btn btn-outline-danger w-100"><i class="bi bi-trash me-2"></i>Изтрий</button>
+                    </form>
                 </div>
-            }
+            </div>
         }
     </div>
 </div>
-
-@section Scripts {
-    @inject UserManager<ApplicationUser> UserManager
-}

@@ -1,0 +1,295 @@
+@model ModelDetailsViewModel
+@{
+    var brand = Model.Model.CarBrand?.Name ?? "";
+    var name = Model.Model.Name;
+    ViewData["Title"] = $"{brand} {name}";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var gens = Model.Model.Generations.OrderByDescending(g => g.YearFrom).ThenBy(g => g.Name).ToList();
+    var years = gens.Count > 0 ? $"{gens.Min(g => g.YearFrom)}–{gens.Max(g => g.YearTo)}" : "";
+    var hasCharts = Model.CostByYear.HasData || Model.RatingByYear.HasData || Model.Stats.DefectCounts.Any() || Model.CostByMileage.HasData;
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Brands" asp-action="Index">Марки</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Brands" asp-action="Details" asp-route-id="@Model.Model.CarBrandId">@brand</a></li>
+        <li class="breadcrumb-item active">@name</li>
+    </ol>
+</nav>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <h1 class="fw-bold mb-1">@brand @name</h1>
+        <p class="text-body-secondary mb-3">Произвеждан @years · @gens.Count поколения/версии в каталога · @Model.FollowersCount следващи</p>
+
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-card-list"></i><div class="fw-semibold mt-1">@Model.Stats.Entries</div><small class="text-body-secondary">отзива</small></div></div>
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-star-half"></i><div class="fw-semibold mt-1">@(Model.Stats.Entries > 0 ? Model.Stats.AvgRating.ToString("0.0") + "/10" : "—")</div><small class="text-body-secondary">оценка на собствениците</small></div></div>
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-cash-coin"></i><div class="fw-semibold mt-1">@(Model.Stats.AvgCost.HasValue ? Model.Stats.AvgCost.Value.ToString("N0") + " €" : "—")</div><small class="text-body-secondary">поддръжка/год.</small></div></div>
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-speedometer2"></i><div class="fw-semibold mt-1">@(Model.Stats.AvgMileage.HasValue ? Model.Stats.AvgMileage.Value.ToString("N0") + " км" : "—")</div><small class="text-body-secondary">среден пробег</small></div></div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <a asp-controller="Cars" asp-action="Create" asp-route-modelId="@Model.Model.Id" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Добави отзив за @name</a>
+            <a asp-controller="Compare" asp-action="Index" asp-route-modelIds="@Model.Model.Id" class="btn btn-outline-primary"><i class="bi bi-layout-split me-1"></i>Сравни</a>
+            @if (signedIn)
+            {
+                if (Model.IsFollowing)
+                {
+                    <form asp-action="Unfollow" asp-route-id="@Model.Model.Id" method="post">
+                        <button class="btn btn-outline-secondary"><i class="bi bi-bell-slash me-1"></i>Спри да следиш</button>
+                    </form>
+                }
+                else
+                {
+                    <form asp-action="Follow" asp-route-id="@Model.Model.Id" method="post">
+                        <button class="btn btn-outline-primary"><i class="bi bi-bell me-1"></i>Следи модела</button>
+                    </form>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-3"><div class="card-body"><partial name="_IndexMeter" model="Model.Stats" /></div></div>
+        <!-- US16: обяви в сайтове за продажба -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="mb-2"><i class="bi bi-tag me-1 text-primary"></i>Търси обяви за @brand @name</h6>
+                <div class="d-grid gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="@MarketplaceLinks.MobileBg(brand, name)" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right me-1"></i>Mobile.bg</a>
+                    <a class="btn btn-sm btn-outline-primary" href="@MarketplaceLinks.CarsBg(brand, name)" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right me-1"></i>Cars.bg</a>
+                    <a class="btn btn-sm btn-outline-primary" href="@MarketplaceLinks.Olx(brand, name)" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right me-1"></i>OLX.bg</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- US04: графики -->
+@if (hasCharts)
+{
+    <h4 class="section-title mb-3">Статистика за поддръжката</h4>
+    <div class="row g-3 mb-4">
+        @if (Model.CostByYear.HasData)
+        {
+            <div class="col-lg-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><h6>Разходи за поддръжка според годината на производство</h6><div class="chart-box"><canvas id="costYearChart"></canvas></div></div></div></div>
+        }
+        @if (Model.CostByMileage.HasData)
+        {
+            <div class="col-lg-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><h6>Разходи за поддръжка според пробега</h6><div class="chart-box"><canvas id="costMileageChart"></canvas></div></div></div></div>
+        }
+        @if (Model.Stats.DefectCounts.Any())
+        {
+            <div class="col-lg-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><h6>Най-чести дефекти</h6><div class="chart-box"><canvas id="defectChart"></canvas></div></div></div></div>
+        }
+        @if (Model.RatingByYear.HasData)
+        {
+            <div class="col-lg-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><h6>Оценка на собствениците според годината</h6><div class="chart-box"><canvas id="ratingYearChart"></canvas></div></div></div></div>
+        }
+    </div>
+}
+
+<!-- US03: старо срещу ново -->
+@if (Model.GenerationStats.Count > 1)
+{
+    <h4 class="section-title mb-3">По-старите или по-новите поколения са по-здрави?</h4>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Поколение</th><th class="text-center">Години</th><th class="text-center">Отзиви</th><th class="text-center">Ср. оценка</th><th class="text-center d-none d-md-table-cell">Поддръжка/год.</th><th class="text-end">Индекс</th></tr></thead>
+                <tbody>
+                    @foreach (var g in Model.GenerationStats)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@g.Name</td>
+                            <td class="text-center">@g.YearFrom–@g.YearTo</td>
+                            <td class="text-center">@g.Stats.Entries</td>
+                            <td class="text-center">@g.Stats.AvgRating.ToString("0.0")</td>
+                            <td class="text-center d-none d-md-table-cell">@(g.Stats.AvgCost.HasValue ? g.Stats.AvgCost.Value.ToString("N0") + " €" : "—")</td>
+                            <td class="text-end"><partial name="_IndexBadge" model="g.Stats" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <!-- Отзиви -->
+        <h4 class="section-title mb-3">Отзиви от собственици</h4>
+        @if (Model.Entries.Any())
+        {
+            <div class="list-group shadow-sm mb-4">
+                @foreach (var e in Model.Entries)
+                {
+                    <a asp-controller="Cars" asp-action="Details" asp-route-id="@e.Id" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="fw-semibold">@e.Year г. · @e.CarEngine?.Name</div>
+                                <div class="small text-body-secondary">@e.CarEngine?.Transmission · @e.Mileage.ToString("N0") км
+                                    @if (e.MaintenanceCost.HasValue) { <span> · @e.MaintenanceCost.Value.ToString("N0") €/год.</span> }
+                                </div>
+                                @if (e.Defects != DefectCategory.None)
+                                {
+                                    <div class="small text-danger mt-1"><i class="bi bi-tools me-1"></i>@string.Join(", ", EnumText.DefectNames(e.Defects))</div>
+                                }
+                            </div>
+                            <div class="text-end">
+                                <span class="badge rating-badge text-bg-@(e.ReliabilityRating >= 8 ? "success" : e.ReliabilityRating >= 5 ? "warning" : "danger")">@e.ReliabilityRating/10</span>
+                                <div class="small text-body-secondary mt-1">@e.User?.Nickname</div>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info mb-4"><i class="bi bi-info-circle me-2"></i>Все още няма отзиви за този модел. <a asp-controller="Cars" asp-action="Create" asp-route-modelId="@Model.Model.Id">Добавете първия!</a></div>
+        }
+
+        <!-- Каталог: поколения и двигатели -->
+        <h4 class="section-title mb-3">Поколения и двигатели</h4>
+        <div class="accordion shadow-sm mb-4" id="gens">
+            @for (var i = 0; i < gens.Count; i++)
+            {
+                var g = gens[i];
+                var engines = g.Engines.GroupBy(e => e.Name).Select(x => x.First()).OrderBy(e => e.FuelType).ThenBy(e => e.DisplacementCc ?? 0).ThenBy(e => e.PowerHp ?? 0).ToList();
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button @(i == 0 ? "" : "collapsed")" type="button" data-bs-toggle="collapse" data-bs-target="#gen-@g.Id">
+                            @g.DisplayName <span class="badge text-bg-primary ms-2">@engines.Count двиг.</span>
+                        </button>
+                    </h2>
+                    <div id="gen-@g.Id" class="accordion-collapse collapse @(i == 0 ? "show" : "")" data-bs-parent="#gens">
+                        <div class="accordion-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0 small">
+                                    <thead><tr><th>Двигател</th><th>Гориво</th><th class="d-none d-md-table-cell">Мощност</th><th>Скоростни кутии</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var e in engines)
+                                        {
+                                            <tr>
+                                                <td>@e.Name</td>
+                                                <td>@EnumText.Fuel(e.FuelType)</td>
+                                                <td class="d-none d-md-table-cell">@(e.PowerHp.HasValue ? e.PowerHp + " к.с." : "—")</td>
+                                                <td>@string.Join(", ", g.Engines.Where(x => x.Name == e.Name).Select(x => x.Transmission).Distinct())</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- US10: оценки и коментари -->
+    <div class="col-lg-5" id="comments">
+        <h4 class="section-title mb-3">Оценки и коментари</h4>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="display-6 fw-bold">@(Model.Stats.AvgStars?.ToString("0.0") ?? "—")</div>
+                    <div>
+                        <div class="stars-static fs-5">
+                            @for (var s = 1; s <= 5; s++)
+                            {
+                                var avg = Model.Stats.AvgStars ?? 0;
+                                <i class="bi @(avg >= s ? "bi-star-fill" : avg >= s - 0.5 ? "bi-star-half" : "bi-star")"></i>
+                            }
+                        </div>
+                        <small class="text-body-secondary">@Model.Stats.StarVotes гласа</small>
+                    </div>
+                </div>
+                @if (signedIn)
+                {
+                    <form asp-action="Rate" asp-route-id="@Model.Model.Id" method="post" class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="small">@(Model.MyStars.HasValue ? "Вашата оценка:" : "Оценете:")</span>
+                        <div class="star-rating">
+                            @for (var s = 5; s >= 1; s--)
+                            {
+                                <input type="radio" id="star-@s" name="stars" value="@s" checked="@(Model.MyStars == s)" onchange="this.form.submit()" />
+                                <label for="star-@s" title="@s от 5"><i class="bi bi-star-fill"></i></label>
+                            }
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <p class="small mb-0"><a asp-controller="Account" asp-action="Login">Влезте</a>, за да оцените модела.</p>
+                }
+            </div>
+        </div>
+
+        @if (signedIn)
+        {
+            <form asp-action="AddComment" asp-route-id="@Model.Model.Id" method="post" class="mb-3">
+                <textarea name="text" class="form-control mb-2" rows="3" maxlength="1000" required placeholder="Напишете коментар..." aria-label="Коментар"></textarea>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Публикувай</button>
+            </form>
+        }
+
+        @if (Model.Comments.Any())
+        {
+            @foreach (var c in Model.Comments)
+            {
+                <div class="card border-0 shadow-sm mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="small"><i class="bi bi-person-circle me-1 text-primary"></i>@c.User?.Nickname</strong>
+                            <span class="small text-body-secondary">@c.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                        </div>
+                        <p class="mb-1 mt-1" style="white-space: pre-line">@c.Text</p>
+                        @if (signedIn && (User.IsInRole("Admin") || c.User?.UserName == User.Identity?.Name))
+                        {
+                            <form asp-action="DeleteComment" asp-route-commentId="@c.Id" method="post" onsubmit="return confirm('Да изтрия ли коментара?')">
+                                <button class="btn btn-link btn-sm text-danger p-0"><i class="bi bi-trash me-1"></i>Изтрий</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="text-body-secondary small">Все още няма коментари.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (hasCharts)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script>
+            (function () {
+                const blue = '#1d5fe0';
+                const palette = ['#1d5fe0', '#3478f6', '#0d3a8c', '#5b93ff', '#00a3e0', '#7c4dff', '#f0ad00', '#dc3545', '#6c757d'];
+                const make = function (id, config) { const el = document.getElementById(id); if (el) new Chart(el, config); };
+                const base = { maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+                make('costYearChart', { type: 'line', data: { labels: @Json.Serialize(Model.CostByYear.Labels),
+                    datasets: [{ label: 'Разходи (€/год.)', data: @Json.Serialize(Model.CostByYear.Values), borderColor: blue, backgroundColor: 'rgba(29,95,224,.15)', fill: true, tension: .3 }] },
+                    options: Object.assign({}, base, { scales: { y: { beginAtZero: true, title: { display: true, text: '€ на година' } } } }) });
+
+                make('costMileageChart', { type: 'line', data: { labels: @Json.Serialize(Model.CostByMileage.Labels),
+                    datasets: [{ label: 'Разходи (€/год.)', data: @Json.Serialize(Model.CostByMileage.Values), borderColor: '#0d3a8c', backgroundColor: 'rgba(13,58,140,.15)', fill: true, tension: .3 }] },
+                    options: Object.assign({}, base, { scales: { y: { beginAtZero: true, title: { display: true, text: '€ на година' } } } }) });
+
+                make('defectChart', { type: 'pie', data: { labels: @Json.Serialize(Model.Stats.DefectCounts.Select(d => d.Name)),
+                    datasets: [{ data: @Json.Serialize(Model.Stats.DefectCounts.Select(d => d.Count)), backgroundColor: palette }] },
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
+
+                make('ratingYearChart', { type: 'bar', data: { labels: @Json.Serialize(Model.RatingByYear.Labels),
+                    datasets: [{ label: 'Средна оценка', data: @Json.Serialize(Model.RatingByYear.Values), backgroundColor: blue, borderRadius: 6 }] },
+                    options: Object.assign({}, base, { scales: { y: { min: 0, max: 10 } } }) });
+            })();
+        </script>
+    }
+}

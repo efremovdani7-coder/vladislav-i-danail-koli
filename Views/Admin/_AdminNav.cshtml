@@ -1,0 +1,11 @@
+@{
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    string Active(string a) => action == a ? "active" : "";
+}
+<h2 class="mb-3"><i class="bi bi-shield-lock me-2 text-primary"></i>Администраторски панел</h2>
+<ul class="nav nav-pills mb-4 flex-wrap gap-1">
+    <li class="nav-item"><a class="nav-link @Active("Index")" asp-controller="Admin" asp-action="Index"><i class="bi bi-database me-1"></i>Отзиви</a></li>
+    <li class="nav-item"><a class="nav-link @Active("Comments")" asp-controller="Admin" asp-action="Comments"><i class="bi bi-chat-left-text me-1"></i>Коментари</a></li>
+    <li class="nav-item"><a class="nav-link @Active("Users")" asp-controller="Admin" asp-action="Users"><i class="bi bi-people me-1"></i>Потребители</a></li>
+    <li class="nav-item"><a class="nav-link @Active("Logins")" asp-controller="Admin" asp-action="Logins"><i class="bi bi-box-arrow-in-right me-1"></i>История на влизанията</a></li>
+</ul>

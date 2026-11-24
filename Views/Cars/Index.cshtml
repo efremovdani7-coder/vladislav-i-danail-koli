@@ -1,74 +1,33 @@
-@model List<CarEntry>
+@model CarListViewModel
 @{
-    ViewData["Title"] = "Всички автомобили";
-    var currentPage = (int)ViewBag.CurrentPage;
-    var totalPages = (int)ViewBag.TotalPages;
+    ViewData["Title"] = "Всички отзиви";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-list-ul me-2"></i>Всички автомобили</h2>
-    <a asp-action="Create" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-2"></i>Добави нов
-    </a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h2 class="mb-0"><i class="bi bi-card-list me-2 text-primary"></i>Всички отзиви</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="Search" class="btn btn-outline-primary"><i class="bi bi-funnel me-1"></i>Справки</a>
+        <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Добави отзив</a>
+    </div>
 </div>
 
-@if (Model.Any())
+@if (Model.Entries.Any())
 {
-    <div class="row g-3">
-        @foreach (var entry in Model)
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+        @foreach (var e in Model.Entries)
         {
-            <div class="col-sm-6 col-lg-4 col-xl-3">
-                <div class="card border-0 shadow-sm h-100 car-card">
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title mb-0">@entry.CarBrand?.Name</h5>
-                            <span class="badge @(entry.ReliabilityRating >= 7 ? "bg-success" : entry.ReliabilityRating >= 4 ? "bg-warning" : "bg-danger") rounded-pill fs-6">
-                                @entry.ReliabilityRating/10
-                            </span>
-                        </div>
-                        <h6 class="text-muted">@entry.Model (@entry.Year)</h6>
-                        <hr />
-                        <div class="small mb-2">
-                            <div><i class="bi bi-speedometer2 me-2"></i>@entry.Mileage.ToString("N0") км</div>
-                            <div><i class="bi bi-fuel-pump me-2"></i>@Html.DisplayFor(m => entry.EngineType)</div>
-                            <div><i class="bi bi-gear me-2"></i>@Html.DisplayFor(m => entry.Transmission)</div>
-                        </div>
-                        @if (!string.IsNullOrEmpty(entry.Comment))
-                        {
-                            <p class="card-text small text-muted flex-grow-1">
-                                @(entry.Comment.Length > 80 ? entry.Comment[..80] + "..." : entry.Comment)
-                            </p>
-                        }
-                        <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
-                            <small class="text-muted">
-                                <i class="bi bi-person me-1"></i>@entry.User?.Nickname
-                            </small>
-                            <a asp-action="Details" asp-route-id="@entry.Id"
-                               class="btn btn-outline-primary btn-sm">Детайли</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div class="col"><partial name="_EntryCard" model="e" /></div>
         }
     </div>
 
-    <!-- Pagination -->
-    @if (totalPages > 1)
+    @if (Model.TotalPages > 1)
     {
-        <nav class="mt-4">
-            <ul class="pagination justify-content-center">
-                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                    <a class="page-link" asp-route-page="@(currentPage - 1)">‹ Предишна</a>
-                </li>
-                @for (int i = 1; i <= totalPages; i++)
+        <nav class="mt-4" aria-label="Страници">
+            <ul class="pagination justify-content-center flex-wrap">
+                @for (var p = 1; p <= Model.TotalPages; p++)
                 {
-                    <li class="page-item @(i == currentPage ? "active" : "")">
-                        <a class="page-link" asp-route-page="@i">@i</a>
-                    </li>
+                    <li class="page-item @(p == Model.CurrentPage ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@p">@p</a></li>
                 }
-                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                    <a class="page-link" asp-route-page="@(currentPage + 1)">Следваща ›</a>
-                </li>
             </ul>
         </nav>
     }
@@ -76,8 +35,9 @@
 else
 {
     <div class="text-center py-5">
-        <i class="bi bi-inbox display-1 text-muted"></i>
-        <h4 class="mt-3">Няма добавени автомобили</h4>
-        <a asp-action="Create" class="btn btn-primary mt-2">Добави първия</a>
+        <i class="bi bi-car-front display-1 text-primary opacity-50"></i>
+        <h4 class="mt-3">Все още няма отзиви</h4>
+        <p class="text-body-secondary">Споделете опита си с вашия автомобил първи.</p>
+        <a asp-action="Create" class="btn btn-primary btn-lg"><i class="bi bi-plus-circle me-2"></i>Добави автомобил</a>
     </div>
 }

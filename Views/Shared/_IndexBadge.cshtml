@@ -1,0 +1,10 @@
+@model ReliabilityStats
+@* US07: индекс на надеждност 1–100: 80–100 зелено, 50–79 жълто, 1–49 червено *@
+@if (Model.HasData)
+{
+    <span class="badge index-badge text-bg-@Model.CssClass" title="Индекс на надеждност: @Model.Level">@Model.Index<small>/100</small></span>
+}
+else
+{
+    <span class="badge index-badge text-bg-secondary" title="Все още няма данни">—</span>
+}

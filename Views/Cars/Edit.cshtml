@@ -1,91 +1,23 @@
-@model CarEntry
+@model CarEntryFormViewModel
 @{
-    ViewData["Title"] = "Редактирай автомобил";
+    ViewData["Title"] = "Редакция на отзив";
 }
 
-<h2 class="mb-4"><i class="bi bi-pencil me-2"></i>Редактирай: @Model.CarBrand?.Name @Model.Model</h2>
+<h2 class="mb-4"><i class="bi bi-pencil me-2 text-primary"></i>Редакция на отзив</h2>
 
-<div class="col-lg-8">
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <form asp-action="Edit" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" asp-for="Id" />
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
-                        <label asp-for="CarBrandId" class="form-label"></label>
-                        <select asp-for="CarBrandId" class="form-select" asp-items="@(ViewBag.Brands as SelectList)">
-                        </select>
-                        <span asp-validation-for="CarBrandId" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="Model" class="form-label"></label>
-                        <input asp-for="Model" class="form-control" />
-                        <span asp-validation-for="Model" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="Year" class="form-label"></label>
-                        <input asp-for="Year" type="number" class="form-control" />
-                        <span asp-validation-for="Year" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="Mileage" class="form-label"></label>
-                        <input asp-for="Mileage" type="number" class="form-control" />
-                        <span asp-validation-for="Mileage" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="ReliabilityRating" class="form-label"></label>
-                        <input asp-for="ReliabilityRating" type="number" min="1" max="10" class="form-control" />
-                        <span asp-validation-for="ReliabilityRating" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="EngineType" class="form-label"></label>
-                        <select asp-for="EngineType" class="form-select" asp-items="Html.GetEnumSelectList<EngineType>()"></select>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="EngineDisplacement" class="form-label"></label>
-                        <input asp-for="EngineDisplacement" type="number" step="0.1" class="form-control" />
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="Transmission" class="form-label"></label>
-                        <select asp-for="Transmission" class="form-select" asp-items="Html.GetEnumSelectList<TransmissionType>()"></select>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="MaintenanceCost" class="form-label"></label>
-                        <input asp-for="MaintenanceCost" type="number" step="0.01" min="0" class="form-control" placeholder="напр. 800" />
-                        <span asp-validation-for="MaintenanceCost" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="Pros" class="form-label"></label>
-                        <textarea asp-for="Pros" class="form-control" rows="3"></textarea>
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="Cons" class="form-label"></label>
-                        <textarea asp-for="Cons" class="form-control" rows="3"></textarea>
-                    </div>
-                    <div class="col-12">
-                        <label asp-for="CommonIssues" class="form-label"></label>
-                        <textarea asp-for="CommonIssues" class="form-control" rows="3"></textarea>
-                    </div>
-                    <div class="col-12">
-                        <label asp-for="Comment" class="form-label"></label>
-                        <textarea asp-for="Comment" class="form-control" rows="4"></textarea>
-                    </div>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-warning btn-lg">
-                        <i class="bi bi-check me-2"></i>Запази промените
-                    </button>
-                    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-lg">Отказ</a>
-                </div>
-            </form>
-        </div>
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <form asp-action="Edit" asp-route-id="@Model.Id" method="post" novalidate>
+            <partial name="_EntryForm" model="Model" />
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check-circle me-2"></i>Запази</button>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-lg">Отказ</a>
+            </div>
+        </form>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/entry-form.js" asp-append-version="true"></script>
 }

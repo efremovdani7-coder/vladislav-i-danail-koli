@@ -4,65 +4,58 @@
 }
 
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-5">
-        <div class="card border-0 shadow-sm">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow">
             <div class="card-body p-4">
                 <div class="text-center mb-4">
-                    <i class="bi bi-person-plus display-3 text-primary"></i>
-                    <h3 class="mt-2">Регистрация</h3>
-                    <p class="text-muted">Създай акаунт и споделяй опита си</p>
+                    <i class="bi bi-person-plus display-4 text-primary"></i>
+                    <h2 class="mt-2">Регистрация</h2>
+                    <p class="text-body-secondary">Никнеймът ви ще се показва до отзивите, коментарите и в чата.</p>
                 </div>
 
                 <form asp-action="Register" method="post">
-                    @Html.AntiForgeryToken()
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-
                     <div class="mb-3">
                         <label asp-for="Nickname" class="form-label"></label>
                         <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-person"></i></span>
-                            <input asp-for="Nickname" class="form-control" placeholder="Твоят никнейм" />
+                            <span class="input-group-text"><i class="bi bi-at"></i></span>
+                            <input asp-for="Nickname" class="form-control" autocomplete="nickname" maxlength="20" />
                         </div>
+                        <div class="form-text">3–20 символа: букви, цифри и долна черта (_). Трябва да е уникален.</div>
                         <span asp-validation-for="Nickname" class="text-danger small"></span>
                     </div>
-
                     <div class="mb-3">
                         <label asp-for="Email" class="form-label"></label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                            <input asp-for="Email" class="form-control" placeholder="email@example.com" />
+                            <input asp-for="Email" class="form-control" autocomplete="email" />
                         </div>
                         <span asp-validation-for="Email" class="text-danger small"></span>
                     </div>
-
                     <div class="mb-3">
                         <label asp-for="Password" class="form-label"></label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                            <input asp-for="Password" class="form-control" placeholder="••••••" />
+                            <input asp-for="Password" class="form-control" autocomplete="new-password" />
                         </div>
+                        <div class="form-text">Поне 6 символа.</div>
                         <span asp-validation-for="Password" class="text-danger small"></span>
                     </div>
-
                     <div class="mb-4">
                         <label asp-for="ConfirmPassword" class="form-label"></label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                            <input asp-for="ConfirmPassword" class="form-control" placeholder="••••••" />
+                            <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
                         </div>
+                        <div class="form-text">Въведете паролата още веднъж, за да няма грешка при писане.</div>
                         <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
                     </div>
-
-                    <button type="submit" class="btn btn-primary w-100 btn-lg">
-                        <i class="bi bi-check-circle me-2"></i>Регистрирай се
-                    </button>
+                    <button type="submit" class="btn btn-primary w-100 btn-lg"><i class="bi bi-check-circle me-2"></i>Регистрирай се</button>
                 </form>
 
-                <hr />
-                <p class="text-center mb-0">
-                    Вече имаш акаунт?
-                    <a asp-action="Login" class="text-decoration-none">Влез тук</a>
-                </p>
+                <partial name="_ExternalLogins" />
+
+                <p class="text-center mt-4 mb-0">Вече имате профил? <a asp-action="Login">Влезте</a></p>
             </div>
         </div>
     </div>

@@ -1,0 +1,115 @@
+@model CarEntryFormViewModel
+@* Обща форма за добавяне и редакция. Каталожните полета са падащи менюта, зависещи едно от друго. *@
+<div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+<h5 class="mb-3 text-primary"><i class="bi bi-car-front me-2"></i>1. Изберете автомобила</h5>
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label asp-for="BrandId" class="form-label"></label>
+        <select asp-for="BrandId" asp-items="Model.Brands" class="form-select">
+            <option value="">— Изберете марка —</option>
+        </select>
+        <span asp-validation-for="BrandId" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="ModelId" class="form-label"></label>
+        <select asp-for="ModelId" asp-items="Model.Models" class="form-select" disabled="@(!Model.Models.Any())">
+            <option value="">@(Model.Models.Any() ? "— Изберете модел —" : "— Първо изберете марка —")</option>
+        </select>
+        <span asp-validation-for="ModelId" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="GenerationId" class="form-label"></label>
+        <select asp-for="GenerationId" asp-items="Model.Generations" class="form-select" disabled="@(!Model.Generations.Any())">
+            <option value="">@(Model.Generations.Any() ? "— Изберете поколение —" : "— Първо изберете модел —")</option>
+        </select>
+        <span asp-validation-for="GenerationId" class="text-danger small"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Year" class="form-label"></label>
+        <select asp-for="Year" asp-items="Model.Years" class="form-select" disabled="@(!Model.Years.Any())">
+            <option value="">@(Model.Years.Any() ? "— Изберете година —" : "— Първо изберете поколение —")</option>
+        </select>
+        <span asp-validation-for="Year" class="text-danger small"></span>
+    </div>
+    <div class="col-md-5">
+        <label asp-for="EngineName" class="form-label"></label>
+        <select asp-for="EngineName" asp-items="Model.Engines" class="form-select" disabled="@(!Model.Engines.Any())">
+            <option value="">@(Model.Engines.Any() ? "— Изберете двигател —" : "— Първо изберете поколение —")</option>
+        </select>
+        <span asp-validation-for="EngineName" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="CarEngineId" class="form-label"></label>
+        <select asp-for="CarEngineId" asp-items="Model.Variants" class="form-select" disabled="@(!Model.Variants.Any())">
+            <option value="">@(Model.Variants.Any() ? "— Изберете скоростна кутия —" : "— Първо изберете двигател —")</option>
+        </select>
+        <span asp-validation-for="CarEngineId" class="text-danger small"></span>
+    </div>
+</div>
+
+<h5 class="mb-3 text-primary"><i class="bi bi-speedometer2 me-2"></i>2. Данни за вашия автомобил</h5>
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label asp-for="Mileage" class="form-label"></label>
+        <div class="input-group">
+            <input asp-for="Mileage" type="number" min="0" max="2000000" step="1" class="form-control" />
+            <span class="input-group-text">км</span>
+        </div>
+        <span asp-validation-for="Mileage" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="MaintenanceCost" class="form-label"></label>
+        <div class="input-group">
+            <input asp-for="MaintenanceCost" type="number" min="0" step="1" class="form-control" />
+            <span class="input-group-text">€</span>
+        </div>
+        <span asp-validation-for="MaintenanceCost" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="ReliabilityRating" class="form-label"></label>
+        <select asp-for="ReliabilityRating" class="form-select">
+            <option value="">— Оценете —</option>
+            @for (var i = 10; i >= 1; i--)
+            {
+                var label = i switch { 10 => "10 — безпроблемна", 8 => "8 — много надеждна", 5 => "5 — средна", 3 => "3 — често се чупи", 1 => "1 — постоянно в сервиза", _ => i.ToString() };
+                <option value="@i" selected="@(Model.ReliabilityRating == i)">@label</option>
+            }
+        </select>
+        <span asp-validation-for="ReliabilityRating" class="text-danger small"></span>
+    </div>
+</div>
+
+<h5 class="mb-3 text-primary"><i class="bi bi-tools me-2"></i>3. Дефекти и ремонти</h5>
+<div class="row row-cols-2 row-cols-md-3 g-2 mb-3">
+    @foreach (var d in EnumText.Defects)
+    {
+        var id = "defect-" + (int)d.Value;
+        <div class="col">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="SelectedDefects" value="@((int)d.Value)" id="@id" checked="@Model.SelectedDefects.Contains((int)d.Value)" />
+                <label class="form-check-label" for="@id">@d.Name</label>
+            </div>
+        </div>
+    }
+</div>
+<div class="mb-4" id="issues-group">
+    <label asp-for="CommonIssues" class="form-label"></label>
+    <textarea asp-for="CommonIssues" class="form-control" rows="3"></textarea>
+</div>
+
+<h5 class="mb-3 text-primary"><i class="bi bi-chat-text me-2"></i>4. Вашето мнение</h5>
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <label asp-for="Pros" class="form-label"></label>
+        <textarea asp-for="Pros" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Cons" class="form-label"></label>
+        <textarea asp-for="Cons" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="col-12">
+        <label asp-for="Comment" class="form-label"></label>
+        <textarea asp-for="Comment" class="form-control" rows="3"></textarea>
+    </div>
+</div>

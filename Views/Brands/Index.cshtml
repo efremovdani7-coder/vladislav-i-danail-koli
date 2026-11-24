@@ -1,0 +1,54 @@
+@model BrandIndexViewModel
+@{
+    ViewData["Title"] = "Марки";
+}
+
+<h2 class="mb-1"><i class="bi bi-trophy me-2 text-primary"></i>Надеждност по марки</h2>
+<p class="text-body-secondary">Всяка марка има собствена обща оценка, изчислена от отзивите за всички нейни модели.</p>
+
+@if (Model.Ranked.Any())
+{
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-blue">
+                    <tr><th>#</th><th>Марка</th><th class="text-center">Отзиви</th><th class="text-center d-none d-md-table-cell">Ср. оценка</th><th class="text-center d-none d-md-table-cell">Ср. разходи/год.</th><th class="text-center d-none d-lg-table-cell">Звезди</th><th class="text-end">Индекс</th></tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Ranked.Count; i++)
+                    {
+                        var b = Model.Ranked[i];
+                        <tr>
+                            <td class="text-body-secondary">@(i + 1)</td>
+                            <td class="fw-semibold"><a asp-action="Details" asp-route-id="@b.BrandId" class="text-decoration-none">@b.BrandName</a></td>
+                            <td class="text-center">@b.Stats.Entries</td>
+                            <td class="text-center d-none d-md-table-cell">@(b.Stats.Entries > 0 ? b.Stats.AvgRating.ToString("0.0") + "/10" : "—")</td>
+                            <td class="text-center d-none d-md-table-cell">@(b.Stats.AvgCost.HasValue ? b.Stats.AvgCost.Value.ToString("N0") + " €" : "—")</td>
+                            <td class="text-center d-none d-lg-table-cell">@(b.Stats.AvgStars.HasValue ? b.Stats.AvgStars.Value.ToString("0.0") + " ★" : "—")</td>
+                            <td class="text-end"><partial name="_IndexBadge" model="b.Stats" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Все още няма отзиви, затова няма класация. Разгледайте каталога по-долу.</div>
+}
+
+<h4 class="section-title mb-3">Всички марки в каталога</h4>
+<div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-2">
+    @foreach (var b in Model.AllBrands)
+    {
+        <div class="col">
+            <a asp-action="Details" asp-route-id="@b.Id" class="card border-0 shadow-sm car-card text-decoration-none h-100">
+                <div class="card-body py-3 text-center">
+                    <div class="fw-semibold">@b.Name</div>
+                    <small class="text-body-secondary">@b.Models модела</small>
+                </div>
+            </a>
+        </div>
+    }
+</div>

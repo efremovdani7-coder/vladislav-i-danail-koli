@@ -1,0 +1,19 @@
+@using Microsoft.AspNetCore.Authentication
+@{
+    var providers = (ViewBag.ExternalProviders as IEnumerable<AuthenticationScheme>)?.ToList() ?? new List<AuthenticationScheme>();
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+@* US12: бутони за вход с Google / Facebook (показват се само ако са настроени ключове в appsettings.json) *@
+@if (providers.Any())
+{
+    <div class="text-center text-body-secondary small my-3">или</div>
+    <form asp-controller="Account" asp-action="ExternalLogin" asp-route-returnUrl="@returnUrl" method="post" class="d-grid gap-2">
+        @foreach (var p in providers)
+        {
+            var icon = p.Name == "Google" ? "bi-google" : p.Name == "Facebook" ? "bi-facebook" : "bi-box-arrow-in-right";
+            <button type="submit" name="provider" value="@p.Name" class="btn btn-outline-primary">
+                <i class="bi @icon me-2"></i>Вход с @(p.DisplayName ?? p.Name)
+            </button>
+        }
+    </form>
+}

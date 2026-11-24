@@ -1,0 +1,13 @@
+@model CarReliability.ViewComponents.NavBadges
+<li class="nav-item">
+    <a class="nav-link position-relative px-2" asp-controller="Chat" asp-action="Index" title="Чат">
+        <i class="bi bi-chat-dots-fill"></i><span class="d-xl-none ms-1">Чат</span>
+        <span id="badge-messages" class="badge rounded-pill bg-danger nav-badge @(Model.Messages == 0 ? "d-none" : "")">@Model.Messages</span>
+    </a>
+</li>
+<li class="nav-item">
+    <a class="nav-link position-relative px-2" asp-controller="Notifications" asp-action="Index" title="Известия">
+        <i class="bi bi-bell-fill"></i><span class="d-xl-none ms-1">Известия</span>
+        <span id="badge-notifications" class="badge rounded-pill bg-danger nav-badge @(Model.Notifications == 0 ? "d-none" : "")">@Model.Notifications</span>
+    </a>
+</li>

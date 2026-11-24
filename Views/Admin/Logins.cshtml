@@ -1,0 +1,110 @@
+@model LoginHistoryViewModel
+@{
+    ViewData["Title"] = "Админ — история на влизанията";
+    var routeValues = new Dictionary<string, string?>
+    {
+        ["search"] = Model.Search,
+        ["status"] = Model.Status,
+        ["from"] = Model.From?.ToString("yyyy-MM-dd"),
+        ["to"] = Model.To?.ToString("yyyy-MM-dd")
+    };
+}
+
+<partial name="_AdminNav" />
+
+<p class="text-body-secondary">Всяко влизане в сайта (успешно или неуспешно) се записва в базата данни. Тук можете да ги филтрирате, изтегляте и изтривате.</p>
+
+<div class="row g-3 mb-3">
+    <div class="col-4"><div class="card border-0 shadow-sm text-center"><div class="card-body py-2"><div class="fs-4 fw-bold text-primary">@Model.TotalRecords</div><small class="text-body-secondary">записа</small></div></div></div>
+    <div class="col-4"><div class="card border-0 shadow-sm text-center"><div class="card-body py-2"><div class="fs-4 fw-bold text-success">@Model.SuccessCount</div><small class="text-body-secondary">успешни</small></div></div></div>
+    <div class="col-4"><div class="card border-0 shadow-sm text-center"><div class="card-body py-2"><div class="fs-4 fw-bold text-danger">@Model.FailedCount</div><small class="text-body-secondary">неуспешни</small></div></div></div>
+</div>
+
+<form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label small" for="search">Имейл, никнейм или IP</label>
+            <input id="search" name="search" value="@Model.Search" class="form-control" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small" for="status">Резултат</label>
+            <select id="status" name="status" class="form-select">
+                <option value="">Всички</option>
+                <option value="ok" selected="@(Model.Status == "ok")">Успешни</option>
+                <option value="failed" selected="@(Model.Status == "failed")">Неуспешни</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small" for="from">От дата</label>
+            <input id="from" type="date" name="from" value="@Model.From?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small" for="to">До дата</label>
+            <input id="to" type="date" name="to" value="@Model.To?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-6 col-md-2 d-flex gap-2">
+            <button class="btn btn-primary flex-grow-1" title="Филтрирай"><i class="bi bi-funnel"></i></button>
+            <a asp-action="Logins" class="btn btn-outline-secondary" title="Изчисти"><i class="bi bi-x-lg"></i></a>
+        </div>
+    </div>
+</form>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a asp-action="ExportLogins" asp-all-route-data="routeValues" class="btn btn-outline-primary btn-sm"><i class="bi bi-download me-1"></i>Изтегли като CSV (Excel)</a>
+    <form asp-action="ClearLogins" method="post" class="d-flex gap-2 ms-auto" onsubmit="return confirm('Сигурни ли сте? Изтритите записи не могат да се възстановят.')">
+        <select name="olderThanDays" class="form-select form-select-sm" aria-label="Период">
+            <option value="30">по-стари от 30 дни</option>
+            <option value="90">по-стари от 90 дни</option>
+            <option value="365">по-стари от 1 година</option>
+            <option value="0">всички записи</option>
+        </select>
+        <button class="btn btn-outline-danger btn-sm text-nowrap"><i class="bi bi-trash me-1"></i>Изтрий</button>
+    </form>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-blue"><tr><th>Дата и час</th><th>Имейл</th><th>Никнейм</th><th>Начин</th><th>Резултат</th><th class="d-none d-md-table-cell">IP адрес</th><th class="d-none d-xl-table-cell">Браузър</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.Records)
+                {
+                    <tr>
+                        <td class="text-nowrap">@r.LoggedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                        <td>@r.Login</td>
+                        <td>@(r.Nickname ?? "—")</td>
+                        <td>@r.Method</td>
+                        <td>
+                            @if (r.Succeeded) { <span class="badge bg-success">Успешен</span> }
+                            else { <span class="badge bg-danger" title="@r.FailureReason">Неуспешен</span><div class="text-danger">@r.FailureReason</div> }
+                        </td>
+                        <td class="d-none d-md-table-cell">@r.IpAddress</td>
+                        <td class="d-none d-xl-table-cell text-truncate" style="max-width: 260px" title="@r.UserAgent">@r.UserAgent</td>
+                        <td class="text-end">
+                            <form asp-action="DeleteLogin" asp-route-id="@r.Id" method="post" onsubmit="return confirm('Да изтрия ли записа?')">
+                                <button class="btn btn-sm btn-link text-danger p-0" title="Изтрий"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Records.Any())
+                {
+                    <tr><td colspan="8" class="text-center text-body-secondary py-4">Няма записи.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav class="mt-3" aria-label="Страници">
+        <ul class="pagination justify-content-center flex-wrap">
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                var pageRoute = new Dictionary<string, string?>(routeValues) { ["page"] = p.ToString() };
+                <li class="page-item @(p == Model.CurrentPage ? "active" : "")"><a class="page-link" asp-action="Logins" asp-all-route-data="pageRoute">@p</a></li>
+            }
+        </ul>
+    </nav>
+}

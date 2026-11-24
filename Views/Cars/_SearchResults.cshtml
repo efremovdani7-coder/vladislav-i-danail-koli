@@ -1,66 +1,81 @@
 @model CarSearchViewModel
 
-@if (Model.Results.Any())
+@if (Model.Summary != null)
 {
-    <h4 class="mb-3">Намерени: @Model.TotalResults резултата</h4>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Марка</th>
-                    <th>Модел</th>
-                    <th>Година</th>
-                    <th>Пробег</th>
-                    <th>Двигател</th>
-                    <th>Оценка</th>
-                    <th>От</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var entry in Model.Results)
-                {
-                    <tr>
-                        <td class="fw-semibold">@entry.CarBrand?.Name</td>
-                        <td>@entry.Model</td>
-                        <td>@entry.Year</td>
-                        <td>@entry.Mileage.ToString("N0") км</td>
-                        <td>@Html.DisplayFor(m => entry.EngineType)</td>
-                        <td>
-                            <span class="badge @(entry.ReliabilityRating >= 7 ? "bg-success" : entry.ReliabilityRating >= 4 ? "bg-warning" : "bg-danger")">
-                                @entry.ReliabilityRating/10
-                            </span>
-                        </td>
-                        <td><small>@entry.User?.Nickname</small></td>
-                        <td>
-                            <a asp-controller="Cars" asp-action="Details" asp-route-id="@entry.Id"
-                               class="btn btn-outline-primary btn-sm">Виж</a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-else if (Context.Request.QueryString.HasValue)
-{
-    <div class="text-center py-4">
-        <i class="bi bi-emoji-frown display-3 text-muted"></i>
-        <h5 class="mt-3">Няма намерени резултати</h5>
-        <p class="text-muted">Опитай с различни критерии за търсене.</p>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-4">
+            <div class="flex-grow-1">
+                <h5 class="mb-1">@Model.SummaryTitle</h5>
+                <div class="small text-body-secondary">
+                    @Model.Summary.Entries отзива
+                    @if (Model.Summary.Entries > 0)
+                    {
+                        <span> · средна оценка @Model.Summary.AvgRating.ToString("0.0")/10</span>
+                    }
+                    @if (Model.Summary.AvgCost.HasValue)
+                    {
+                        <span> · поддръжка @Model.Summary.AvgCost.Value.ToString("N0") €/год.</span>
+                    }
+                </div>
+            </div>
+            <div style="min-width: 220px"><partial name="_IndexMeter" model="Model.Summary" /></div>
+            @if (Model.SummaryModelId.HasValue)
+            {
+                <a asp-controller="Models" asp-action="Details" asp-route-id="@Model.SummaryModelId" class="btn btn-outline-primary">Към модела</a>
+            }
+            else if (Model.SummaryBrandId.HasValue)
+            {
+                <a asp-controller="Brands" asp-action="Details" asp-route-id="@Model.SummaryBrandId" class="btn btn-outline-primary">Към марката</a>
+            }
+        </div>
     </div>
 }
 
-@if (Model.TotalPages > 1)
+@if (Model.Results.Any())
 {
-    <nav aria-label="Страници">
-        <ul class="pagination justify-content-center flex-wrap">
-            @for (int p = 1; p <= Model.TotalPages; p++)
-            {
-                <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
-                    <a class="page-link" href="#" data-page="@p">@p</a>
-                </li>
-            }
-        </ul>
-    </nav>
+    <h5 class="mb-3">Намерени: @Model.TotalResults отзива</h5>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-blue">
+                    <tr><th>Автомобил</th><th>Година</th><th class="d-none d-md-table-cell">Двигател</th><th>Пробег</th><th class="d-none d-lg-table-cell">Поддръжка</th><th>Оценка</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Results)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@e.CarModel?.CarBrand?.Name @e.CarModel?.Name</td>
+                            <td>@e.Year</td>
+                            <td class="d-none d-md-table-cell small">@e.CarEngine?.Name</td>
+                            <td>@e.Mileage.ToString("N0") км</td>
+                            <td class="d-none d-lg-table-cell">@(e.MaintenanceCost.HasValue ? e.MaintenanceCost.Value.ToString("N0") + " €" : "—")</td>
+                            <td><span class="badge rating-badge text-bg-@(e.ReliabilityRating >= 8 ? "success" : e.ReliabilityRating >= 5 ? "warning" : "danger")">@e.ReliabilityRating/10</span></td>
+                            <td class="text-end"><a asp-action="Details" asp-route-id="@e.Id" class="btn btn-sm btn-outline-primary">Виж</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-3" aria-label="Страници">
+            <ul class="pagination justify-content-center flex-wrap">
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.CurrentPage ? "active" : "")"><a class="page-link" href="#" data-page="@p">@p</a></li>
+                }
+            </ul>
+        </nav>
+    }
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="bi bi-search display-3 text-body-secondary"></i>
+        <h5 class="mt-3">Няма намерени отзиви</h5>
+        <p class="text-body-secondary">Опитайте с други филтри или добавете първия отзив за този автомобил.</p>
+        <a asp-action="Create" asp-route-modelId="@Model.ModelId" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Добави отзив</a>
+    </div>
 }

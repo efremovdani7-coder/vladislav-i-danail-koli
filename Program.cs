@@ -1,26 +1,33 @@
 using CarReliability.Data;
+using CarReliability.Hubs;
 using CarReliability.Models;
+using CarReliability.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database
+// База данни (SQLite — файл avtonadejdnost.db в папката на проекта)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Identity
+// Потребители и роли (ASP.NET Core Identity)
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = false;
     options.Password.RequireLowercase = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredLength = 4;
+    options.Password.RequiredLength = 6;
     options.User.RequireUniqueEmail = true;
+    options.Lockout.AllowedForNewUsers = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddErrorDescriber<BulgarianIdentityErrorDescriber>();
+
+// Блокираните потребители се изхвърлят до 1 минута
+builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -28,101 +35,58 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/AccessDenied";
 });
 
-// Blocked users are signed out within a minute (US06)
-builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+// US12: вход с Google / Facebook — включва се само ако има ключове в appsettings.json
+var auth = builder.Services.AddAuthentication();
+var googleId = builder.Configuration["Authentication:Google:ClientId"];
+if (!string.IsNullOrWhiteSpace(googleId))
 {
-    options.ValidationInterval = TimeSpan.FromMinutes(1);
-});
+    auth.AddGoogle(o =>
+    {
+        o.ClientId = googleId;
+        o.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
+    });
+}
+var facebookId = builder.Configuration["Authentication:Facebook:AppId"];
+if (!string.IsNullOrWhiteSpace(facebookId))
+{
+    auth.AddFacebook(o =>
+    {
+        o.AppId = facebookId;
+        o.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"] ?? "";
+    });
+}
 
-builder.Services.AddControllersWithViews();
+// Услуги на приложението
+builder.Services.AddScoped<ReliabilityService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<LoginHistoryService>();
+builder.Services.AddSingleton<EmailQueue>();
+builder.Services.AddHostedService<EmailBackgroundService>();
+
+builder.Services.AddSignalR();
+builder.Services.AddControllersWithViews(options =>
+{
+    // Съобщения за грешни/липсващи стойности на български
+    var m = options.ModelBindingMessageProvider;
+    m.SetValueMustNotBeNullAccessor(_ => "Полето е задължително.");
+    m.SetMissingBindRequiredValueAccessor(_ => "Полето е задължително.");
+    m.SetMissingKeyOrValueAccessor(() => "Полето е задължително.");
+    m.SetMissingRequestBodyRequiredValueAccessor(() => "Липсват данни.");
+    m.SetAttemptedValueIsInvalidAccessor((value, _) => $"Стойността „{value}“ е невалидна.");
+    m.SetNonPropertyAttemptedValueIsInvalidAccessor(value => $"Стойността „{value}“ е невалидна.");
+    m.SetUnknownValueIsInvalidAccessor(_ => "Невалидна стойност.");
+    m.SetNonPropertyUnknownValueIsInvalidAccessor(() => "Невалидна стойност.");
+    m.SetValueIsInvalidAccessor(value => $"Стойността „{value}“ е невалидна.");
+    m.SetValueMustBeANumberAccessor(_ => "Полето трябва да е число.");
+    m.SetNonPropertyValueMustBeANumberAccessor(() => "Полето трябва да е число.");
+});
 
 var app = builder.Build();
 
-// Seed database
+// Създаване на базата, администратора и зареждане на каталога
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
-
-    // EnsureCreated() doesn't change an existing database, so add new columns/indexes by hand.
-    // US01: maintenance cost column
-    var conn = context.Database.GetDbConnection();
-    await conn.OpenAsync();
-    using (var cmd = conn.CreateCommand())
-    {
-        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('CarEntries') WHERE name = 'MaintenanceCost'";
-        var hasColumn = Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
-        if (!hasColumn)
-        {
-            cmd.CommandText = "ALTER TABLE \"CarEntries\" ADD COLUMN \"MaintenanceCost\" TEXT NULL";
-            await cmd.ExecuteNonQueryAsync();
-        }
-    }
-    await conn.CloseAsync();
-    // US05: unique nicknames (skipped if the old database already has duplicate nicknames)
-    try
-    {
-        await context.Database.ExecuteSqlRawAsync(
-            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_AspNetUsers_Nickname\" ON \"AspNetUsers\" (\"Nickname\")");
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogWarning(ex, "Could not create unique nickname index - there are duplicate nicknames in the database.");
-    }
-
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-
-    // Create roles
-    if (!await roleManager.RoleExistsAsync("Admin"))
-        await roleManager.CreateAsync(new IdentityRole("Admin"));
-    if (!await roleManager.RoleExistsAsync("User"))
-        await roleManager.CreateAsync(new IdentityRole("User"));
-
-    // Create default admin
-    if (await userManager.FindByEmailAsync("admin@cars.bg") == null)
-    {
-        var admin = new ApplicationUser
-        {
-            UserName = "admin@cars.bg",
-            Email = "admin@cars.bg",
-            Nickname = "Администратор",
-            EmailConfirmed = true
-        };
-        await userManager.CreateAsync(admin, "admin123");
-        await userManager.AddToRoleAsync(admin, "Admin");
-    }
-
-    // Seed sample car brands
-    if (!context.CarBrands.Any())
-    {
-        var brands = new[]
-        {
-            new CarBrand { Name = "Toyota" },
-            new CarBrand { Name = "BMW" },
-            new CarBrand { Name = "Mercedes-Benz" },
-            new CarBrand { Name = "Volkswagen" },
-            new CarBrand { Name = "Audi" },
-            new CarBrand { Name = "Honda" },
-            new CarBrand { Name = "Ford" },
-            new CarBrand { Name = "Opel" },
-            new CarBrand { Name = "Peugeot" },
-            new CarBrand { Name = "Renault" },
-            new CarBrand { Name = "Hyundai" },
-            new CarBrand { Name = "Kia" },
-            new CarBrand { Name = "Mazda" },
-            new CarBrand { Name = "Nissan" },
-            new CarBrand { Name = "Skoda" },
-            new CarBrand { Name = "Volvo" },
-            new CarBrand { Name = "Fiat" },
-            new CarBrand { Name = "Citroen" },
-            new CarBrand { Name = "Dacia" },
-            new CarBrand { Name = "Subaru" },
-        };
-        context.CarBrands.AddRange(brands);
-        await context.SaveChangesAsync();
-    }
+    await DbInitializer.InitializeAsync(scope.ServiceProvider, app.Environment, app.Configuration, app.Logger);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -137,6 +101,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

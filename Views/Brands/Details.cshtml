@@ -1,0 +1,90 @@
+@model BrandDetailsViewModel
+@{
+    ViewData["Title"] = Model.Brand.Name;
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-action="Index">Марки</a></li>
+        <li class="breadcrumb-item active">@Model.Brand.Name</li>
+    </ol>
+</nav>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <h2 class="fw-bold mb-1">@Model.Brand.Name</h2>
+        <p class="text-body-secondary mb-3">
+            Обща оценка на марката от всички отзиви за нейните модели.
+            @if (Model.Rank.HasValue)
+            {
+                <span>Място <strong>@Model.Rank от @Model.RankedBrands</strong> в класацията на марките.</span>
+            }
+        </p>
+        <div class="row g-2">
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-card-list"></i><div class="fw-semibold mt-1">@Model.Stats.Entries</div><small class="text-body-secondary">отзива</small></div></div>
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-star-half"></i><div class="fw-semibold mt-1">@(Model.Stats.Entries > 0 ? Model.Stats.AvgRating.ToString("0.0") + "/10" : "—")</div><small class="text-body-secondary">средна оценка</small></div></div>
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-cash-coin"></i><div class="fw-semibold mt-1">@(Model.Stats.AvgCost.HasValue ? Model.Stats.AvgCost.Value.ToString("N0") + " €" : "—")</div><small class="text-body-secondary">поддръжка/год.</small></div></div>
+            <div class="col-6 col-md-3"><div class="spec-tile"><i class="bi bi-tools"></i><div class="fw-semibold mt-1">@(Model.Stats.Entries > 0 ? Model.Stats.AvgDefects.ToString("0.0") : "—")</div><small class="text-body-secondary">дефекта средно</small></div></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm"><div class="card-body"><partial name="_IndexMeter" model="Model.Stats" /></div></div>
+        <a class="btn btn-outline-primary w-100 mt-2" href="@MarketplaceLinks.MobileBgBrand(Model.Brand.Name)" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Обяви за @Model.Brand.Name в Mobile.bg
+        </a>
+    </div>
+</div>
+
+@if (Model.RankedModels.Any())
+{
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h4 class="section-title mb-3">Модели с отзиви</h4>
+            <div class="chart-box mb-3"><canvas id="modelChart"></canvas></div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>Модел</th><th class="text-center">Отзиви</th><th class="text-center">Ср. оценка</th><th class="text-center d-none d-md-table-cell">Поддръжка/год.</th><th class="text-end">Индекс</th></tr></thead>
+                    <tbody>
+                        @foreach (var m in Model.RankedModels)
+                        {
+                            <tr>
+                                <td class="fw-semibold"><a asp-controller="Models" asp-action="Details" asp-route-id="@m.ModelId" class="text-decoration-none">@m.ModelName</a></td>
+                                <td class="text-center">@m.Stats.Entries</td>
+                                <td class="text-center">@(m.Stats.Entries > 0 ? m.Stats.AvgRating.ToString("0.0") : "—")</td>
+                                <td class="text-center d-none d-md-table-cell">@(m.Stats.AvgCost.HasValue ? m.Stats.AvgCost.Value.ToString("N0") + " €" : "—")</td>
+                                <td class="text-end"><partial name="_IndexBadge" model="m.Stats" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+<h4 class="section-title mb-3">Всички модели на @Model.Brand.Name (@Model.AllModels.Count)</h4>
+<div class="d-flex flex-wrap gap-2">
+    @foreach (var m in Model.AllModels)
+    {
+        <a asp-controller="Models" asp-action="Details" asp-route-id="@m.Id" class="btn btn-sm btn-outline-primary">@m.Name</a>
+    }
+</div>
+
+@section Scripts {
+    @if (Model.RankedModels.Any())
+    {
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script>
+            (function () {
+                const labels = @Json.Serialize(Model.RankedModels.Select(m => m.ModelName));
+                const values = @Json.Serialize(Model.RankedModels.Select(m => m.Stats.Index));
+                new Chart(document.getElementById('modelChart'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Индекс на надеждност', data: values, borderRadius: 6,
+                        backgroundColor: values.map(v => v >= 80 ? '#198754' : v >= 50 ? '#f0ad00' : '#dc3545') }] },
+                    options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } }
+                });
+            })();
+        </script>
+    }
+}

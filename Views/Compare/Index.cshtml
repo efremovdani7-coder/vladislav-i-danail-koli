@@ -1,0 +1,173 @@
+@model CompareViewModel
+@{
+    ViewData["Title"] = "Сравнение";
+    int? decadeBrandId = ViewBag.DecadeBrandId;
+    string Money(decimal? v) => v.HasValue ? v.Value.ToString("N0") + " €" : "—";
+    string Rating(ReliabilityStats s) => s.Entries > 0 ? s.AvgRating.ToString("0.0") + "/10" : "—";
+}
+
+<h2 class="mb-1"><i class="bi bi-layout-split me-2 text-primary"></i>Сравнение на модели</h2>
+<p class="text-body-secondary">Изберете 2 или 3 модела и вижте показателите им рамо до рамо — включително дали по-старите коли (произведени преди избраната година) са по-здрави от по-новите.</p>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" id="compare-form">
+            <div class="row g-3">
+                @for (var i = 0; i < Model.Slots.Count; i++)
+                {
+                    var slot = Model.Slots[i];
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="fw-semibold mb-2 text-primary">Модел @(i + 1)@(i == 2 ? " (по желание)" : "")</div>
+                            <select name="brandIds" id="brand-@i" class="form-select mb-2" aria-label="Марка @(i + 1)"
+                                    data-cascade-target="#model-@i" data-cascade-url="/api/catalog/models?brandId="
+                                    data-cascade-empty="— Изберете модел —" data-cascade-disabled="— Първо изберете марка —">
+                                <option value="">— Изберете марка —</option>
+                                @foreach (var b in Model.Brands)
+                                {
+                                    <option value="@b.Value" selected="@(slot.BrandId?.ToString() == b.Value)">@b.Text</option>
+                                }
+                            </select>
+                            <select name="modelIds" id="model-@i" class="form-select" aria-label="Модел @(i + 1)" disabled="@(!slot.Models.Any())">
+                                <option value="">@(slot.Models.Any() ? "— Изберете модел —" : "— Първо изберете марка —")</option>
+                                @foreach (var m in slot.Models)
+                                {
+                                    <option value="@m.Value" selected="@(slot.ModelId?.ToString() == m.Value)">@m.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                }
+                <div class="col-md-4">
+                    <label for="splitYear" class="form-label fw-semibold">Граница „стари / нови“</label>
+                    <select name="splitYear" id="splitYear" class="form-select">
+                        @for (var y = DateTime.Now.Year - 1; y >= 1995; y--)
+                        {
+                            <option value="@y" selected="@(Model.SplitYear == y)">@y г.</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-8 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right me-1"></i>Сравни</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Results.Any())
+{
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 compare-table">
+                <thead class="table-blue">
+                    <tr>
+                        <th>Показател</th>
+                        @foreach (var r in Model.Results)
+                        {
+                            <th class="text-center"><a asp-controller="Models" asp-action="Details" asp-route-id="@r.Model.Id" class="link-light text-decoration-none">@r.Model.FullName</a></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><th>Индекс на надеждност</th>@foreach (var r in Model.Results) { <td class="text-center"><partial name="_IndexBadge" model="r.Stats" /></td> }</tr>
+                    <tr><th>Брой отзиви</th>@foreach (var r in Model.Results) { <td class="text-center">@r.Stats.Entries</td> }</tr>
+                    <tr><th>Средна оценка на собствениците</th>@foreach (var r in Model.Results) { <td class="text-center">@Rating(r.Stats)</td> }</tr>
+                    <tr><th>Среден годишен разход за поддръжка</th>@foreach (var r in Model.Results) { <td class="text-center">@Money(r.Stats.AvgCost)</td> }</tr>
+                    <tr><th>Среден пробег</th>@foreach (var r in Model.Results) { <td class="text-center">@(r.Stats.AvgMileage.HasValue ? r.Stats.AvgMileage.Value.ToString("N0") + " км" : "—")</td> }</tr>
+                    <tr><th>Чести дефекти</th>@foreach (var r in Model.Results) { <td class="text-center small">@(r.Stats.DefectCounts.Any() ? string.Join(", ", r.Stats.DefectCounts.Take(3).Select(d => d.Name)) : "—")</td> }</tr>
+                    <tr><th>Средна оценка от потребители</th>@foreach (var r in Model.Results) { <td class="text-center">@(r.Stats.AvgStars.HasValue ? r.Stats.AvgStars.Value.ToString("0.0") + " ★ (" + r.Stats.StarVotes + ")" : "—")</td> }</tr>
+                    <tr><th>Години на производство</th>@foreach (var r in Model.Results) { <td class="text-center">@(r.YearFrom.HasValue ? r.YearFrom + "–" + r.YearTo : "—")</td> }</tr>
+                    <tr class="table-group-divider"><th>Произведени преди @Model.SplitYear г.</th>@foreach (var r in Model.Results) { <td class="text-center"><partial name="_IndexBadge" model="r.OldStats" /><div class="small text-body-secondary">@r.OldStats.Entries отзива · @Money(r.OldStats.AvgCost)</div></td> }</tr>
+                    <tr><th>Произведени от @Model.SplitYear г. нататък</th>@foreach (var r in Model.Results) { <td class="text-center"><partial name="_IndexBadge" model="r.NewStats" /><div class="small text-body-secondary">@r.NewStats.Entries отзива · @Money(r.NewStats.AvgCost)</div></td> }</tr>
+                    <tr>
+                        <th>Извод</th>
+                        @foreach (var r in Model.Results)
+                        {
+                            <td class="text-center small">
+                                @if (r.OldStats.Entries == 0 || r.NewStats.Entries == 0)
+                                {
+                                    <span class="text-body-secondary">Нужни са отзиви и за стари, и за нови коли</span>
+                                }
+                                else if (r.OldStats.Index > r.NewStats.Index)
+                                {
+                                    <span class="text-success fw-semibold">По-старите са по-здрави (+@(r.OldStats.Index - r.NewStats.Index))</span>
+                                }
+                                else if (r.NewStats.Index > r.OldStats.Index)
+                                {
+                                    <span class="text-primary fw-semibold">По-новите са по-здрави (+@(r.NewStats.Index - r.OldStats.Index))</span>
+                                }
+                                else
+                                {
+                                    <span>Еднакво надеждни</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-info mb-4"><i class="bi bi-info-circle me-2"></i>Изберете поне един модел, за да видите сравнението.</div>
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h4 class="section-title mb-0">Стари срещу нови коли — @Model.ByDecadeTitle</h4>
+            <form asp-action="Index" method="get" class="d-flex gap-2">
+                @foreach (var s in Model.Slots)
+                {
+                    <input type="hidden" name="brandIds" value="@s.BrandId" />
+                    <input type="hidden" name="modelIds" value="@s.ModelId" />
+                }
+                <input type="hidden" name="splitYear" value="@Model.SplitYear" />
+                <select name="decadeBrandId" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Марка за графиката">
+                    <option value="">Всички марки</option>
+                    @foreach (var b in Model.Brands)
+                    {
+                        <option value="@b.Value" selected="@(decadeBrandId?.ToString() == b.Value)">@b.Text</option>
+                    }
+                </select>
+            </form>
+        </div>
+        @if (Model.ByDecade.HasData)
+        {
+            <p class="small text-body-secondary">Индекс на надеждност според десетилетието на производство.</p>
+            <div class="chart-box"><canvas id="decadeChart"></canvas></div>
+        }
+        else
+        {
+            <p class="text-body-secondary mb-0">Няма достатъчно данни за графиката.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // изключените (disabled) менюта не се изпращат, затова ги включваме преди изпращане — така трите позиции не се разместват
+        document.getElementById('compare-form').addEventListener('submit', function () {
+            this.querySelectorAll('select:disabled').forEach(function (s) { s.disabled = false; });
+        });
+    </script>
+    @if (Model.ByDecade.HasData)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script>
+            (function () {
+                const counts = @Json.Serialize(Model.ByDecade.Counts);
+                new Chart(document.getElementById('decadeChart'), {
+                    type: 'bar',
+                    data: { labels: @Json.Serialize(Model.ByDecade.Labels),
+                        datasets: [{ label: 'Индекс на надеждност', data: @Json.Serialize(Model.ByDecade.Values), backgroundColor: '#1d5fe0', borderRadius: 6 }] },
+                    options: { maintainAspectRatio: false, plugins: { legend: { display: false },
+                        tooltip: { callbacks: { afterLabel: ctx => counts[ctx.dataIndex] + ' отзива' } } },
+                        scales: { y: { min: 0, max: 100 } } }
+                });
+            })();
+        </script>
+    }
+}

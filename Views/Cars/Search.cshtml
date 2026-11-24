@@ -1,162 +1,104 @@
 @model CarSearchViewModel
 @{
-    ViewData["Title"] = "Търсене";
+    ViewData["Title"] = "Справки";
+    var thisYear = DateTime.Now.Year;
 }
 
-<h2 class="mb-4"><i class="bi bi-search me-2"></i>Търсене на автомобил</h2>
+<h2 class="mb-1"><i class="bi bi-funnel me-2 text-primary"></i>Справки</h2>
+<p class="text-body-secondary">Филтрирайте отзивите по марка, модел, година и гориво. Резултатите се обновяват веднага.</p>
 
-<!-- Search Form -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <form asp-action="Search" method="get" id="search-form">
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Марка</label>
-                    <select asp-for="Brand" class="form-select" id="brand-select">
+                <div class="col-md-6 col-lg-3">
+                    <label asp-for="BrandId" class="form-label fw-semibold">Марка</label>
+                    <select asp-for="BrandId" asp-items="Model.Brands" class="form-select"
+                            data-cascade-target="#ModelId" data-cascade-url="/api/catalog/models?brandId="
+                            data-cascade-empty="— Всички модели —" data-cascade-disabled="— Първо изберете марка —">
                         <option value="">— Всички марки —</option>
-                        @foreach (var brand in Model.AvailableBrands)
-                        {
-                            <option value="@brand.Name" selected="@(Model.Brand == brand.Name)">@brand.Name</option>
-                        }
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Модел</label>
-                    <select asp-for="Model" class="form-select" id="model-select" disabled="@(string.IsNullOrEmpty(Model.Brand))">
-                        <option value="">@(string.IsNullOrEmpty(Model.Brand) ? "— Първо избери марка —" : "— Всички модели —")</option>
-                        @foreach (var m in Model.AvailableModels)
-                        {
-                            <option value="@m" selected="@(Model.Model == m)">@m</option>
-                        }
+                <div class="col-md-6 col-lg-3">
+                    <label asp-for="ModelId" class="form-label fw-semibold">Модел</label>
+                    <select asp-for="ModelId" asp-items="Model.Models" class="form-select" disabled="@(!Model.BrandId.HasValue)">
+                        <option value="">@(Model.BrandId.HasValue ? "— Всички модели —" : "— Първо изберете марка —")</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Година от</label>
-                    <input asp-for="YearFrom" type="number" class="form-control" placeholder="2000" />
+                <div class="col-6 col-lg-2">
+                    <label asp-for="YearFrom" class="form-label fw-semibold">Година от</label>
+                    <select asp-for="YearFrom" class="form-select">
+                        <option value="">—</option>
+                        @for (var y = thisYear; y >= 1990; y--) { <option value="@y" selected="@(Model.YearFrom == y)">@y</option> }
+                    </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Година до</label>
-                    <input asp-for="YearTo" type="number" class="form-control" placeholder="2024" />
+                <div class="col-6 col-lg-2">
+                    <label asp-for="YearTo" class="form-label fw-semibold">Година до</label>
+                    <select asp-for="YearTo" class="form-select">
+                        <option value="">—</option>
+                        @for (var y = thisYear; y >= 1990; y--) { <option value="@y" selected="@(Model.YearTo == y)">@y</option> }
+                    </select>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Тип двигател</label>
-                    <select asp-for="EngineType" class="form-select" asp-items="Html.GetEnumSelectList<EngineType>()">
+                <div class="col-6 col-lg-2">
+                    <label asp-for="Fuel" class="form-label fw-semibold">Гориво</label>
+                    <select asp-for="Fuel" class="form-select">
                         <option value="">— Всички —</option>
+                        @foreach (var f in Enum.GetValues<FuelType>()) { <option value="@f" selected="@(Model.Fuel == f)">@EnumText.Fuel(f)</option> }
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Мин. оценка за надеждност</label>
+                <div class="col-6 col-lg-3">
+                    <label asp-for="MinRating" class="form-label fw-semibold">Минимална оценка</label>
                     <select asp-for="MinRating" class="form-select">
-                        <option value="">— Без филтър —</option>
-                        @for (int i = 1; i <= 10; i++)
-                        {
-                            <option value="@i" selected="@(Model.MinRating == i)">@i и нагоре</option>
-                        }
+                        <option value="">— Без значение —</option>
+                        @for (var i = 9; i >= 1; i--) { <option value="@i" selected="@(Model.MinRating == i)">@i и нагоре</option> }
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-search me-2"></i>Търси
-                    </button>
+                <div class="col-lg-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-search me-1"></i>Търси</button>
+                    <a asp-action="Search" class="btn btn-outline-secondary" title="Изчисти филтрите"><i class="bi bi-x-lg"></i></a>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Results (updated without reloading the page) -->
 <div id="search-results">
     <partial name="_SearchResults" model="Model" />
 </div>
 
 @section Scripts {
-<script>
-// US02: cascading make -> model dropdown and live search without page reload
-(function () {
-    const form = document.getElementById('search-form');
-    const brandSelect = document.getElementById('brand-select');
-    const modelSelect = document.getElementById('model-select');
-    const results = document.getElementById('search-results');
-    let currentPage = @Model.CurrentPage;
-    let timer = null;
+    <script>
+        // US02: резултатите се обновяват без презареждане на страницата
+        (function () {
+            const form = document.getElementById('search-form');
+            const results = document.getElementById('search-results');
+            let page = @Model.CurrentPage;
 
-    async function loadModels() {
-        const brand = brandSelect.value;
-        modelSelect.innerHTML = '';
-        const first = document.createElement('option');
-        first.value = '';
-        first.textContent = brand ? '— Всички модели —' : '— Първо избери марка —';
-        modelSelect.appendChild(first);
-        modelSelect.disabled = !brand;
-        if (!brand) return;
+            async function run() {
+                const params = new URLSearchParams(new FormData(form));
+                for (const [k, v] of [...params.entries()]) { if (v === '') params.delete(k); }
+                if (page > 1) params.set('CurrentPage', page);
+                const url = form.action + (params.toString() ? '?' + params.toString() : '');
+                results.style.opacity = '.5';
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
+                    results.innerHTML = await res.text();
+                    history.replaceState(null, '', url);
+                } finally {
+                    results.style.opacity = '1';
+                }
+            }
 
-        const response = await fetch('@Url.Action("Models", "Cars")?brand=' + encodeURIComponent(brand));
-        const models = await response.json();
-        models.forEach(function (m) {
-            const opt = document.createElement('option');
-            opt.value = m;
-            opt.textContent = m;
-            modelSelect.appendChild(opt);
-        });
-    }
-
-    async function runSearch() {
-        const params = new URLSearchParams(new FormData(form));
-        for (const [key, value] of [...params.entries()]) {
-            if (value === '') params.delete(key);
-        }
-        if (currentPage > 1) params.set('CurrentPage', currentPage);
-
-        const url = form.action + '?' + params.toString();
-        results.style.opacity = '0.5';
-        try {
-            const response = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
-            results.innerHTML = await response.text();
-            history.replaceState(null, '', url);
-        } finally {
-            results.style.opacity = '1';
-        }
-    }
-
-    function searchSoon(delay) {
-        clearTimeout(timer);
-        timer = setTimeout(runSearch, delay);
-    }
-
-    brandSelect.addEventListener('change', async function () {
-        currentPage = 1;
-        await loadModels();
-        runSearch();
-    });
-
-    form.addEventListener('change', function (e) {
-        if (e.target === brandSelect) return;
-        currentPage = 1;
-        searchSoon(0);
-    });
-
-    // Year fields: wait until the user stops typing
-    form.querySelectorAll('input[type=number]').forEach(function (input) {
-        input.addEventListener('input', function () {
-            currentPage = 1;
-            searchSoon(400);
-        });
-    });
-
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        currentPage = 1;
-        runSearch();
-    });
-
-    results.addEventListener('click', function (e) {
-        const link = e.target.closest('[data-page]');
-        if (!link) return;
-        e.preventDefault();
-        currentPage = parseInt(link.dataset.page, 10);
-        runSearch();
-        window.scrollTo({ top: results.offsetTop - 80, behavior: 'smooth' });
-    });
-})();
-</script>
+            form.addEventListener('change', function () { page = 1; run(); });
+            form.addEventListener('submit', function (e) { e.preventDefault(); page = 1; run(); });
+            results.addEventListener('click', function (e) {
+                const link = e.target.closest('[data-page]');
+                if (!link) return;
+                e.preventDefault();
+                page = parseInt(link.dataset.page, 10);
+                run();
+                window.scrollTo({ top: results.offsetTop - 90, behavior: 'smooth' });
+            });
+        })();
+    </script>
 }
