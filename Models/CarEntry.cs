@@ -45,6 +45,10 @@ public class CarEntry
     [Display(Name = "Оценка за надеждност (1-10)")]
     public int ReliabilityRating { get; set; }
 
+    [Range(0, 1000000, ErrorMessage = "Разходите трябва да са между 0 и 1 000 000 €.")]
+    [Display(Name = "Годишни разходи за поддръжка (€)")]
+    public decimal? MaintenanceCost { get; set; }
+
     [Display(Name = "Чести проблеми")]
     [StringLength(2000)]
     public string? CommonIssues { get; set; }

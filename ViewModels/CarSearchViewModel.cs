@@ -13,6 +13,9 @@ public class CarSearchViewModel
 
     public List<CarEntry> Results { get; set; } = new();
     public List<CarBrand> AvailableBrands { get; set; } = new();
+    public List<string> AvailableModels { get; set; } = new();
+
+    public int TotalResults { get; set; }
 
     public int CurrentPage { get; set; } = 1;
     public int TotalPages { get; set; }

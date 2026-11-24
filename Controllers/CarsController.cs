@@ -45,6 +45,9 @@ public class CarsController : Controller
     public async Task<IActionResult> Search(CarSearchViewModel vm)
     {
         vm.AvailableBrands = await _context.CarBrands.OrderBy(b => b.Name).ToListAsync();
+        if (!string.IsNullOrEmpty(vm.Brand))
+            vm.AvailableModels = await GetModelsForBrand(vm.Brand);
+        if (vm.CurrentPage < 1) vm.CurrentPage = 1;
 
         var query = _context.CarEntries
             .Include(c => c.CarBrand)
@@ -52,10 +55,10 @@ public class CarsController : Controller
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(vm.Brand))
-            query = query.Where(c => c.CarBrand!.Name.Contains(vm.Brand));
+            query = query.Where(c => c.CarBrand!.Name == vm.Brand);
 
         if (!string.IsNullOrEmpty(vm.Model))
-            query = query.Where(c => c.Model.Contains(vm.Model));
+            query = query.Where(c => c.Model == vm.Model);
 
         if (vm.YearFrom.HasValue)
             query = query.Where(c => c.Year >= vm.YearFrom.Value);
@@ -70,6 +73,7 @@ public class CarsController : Controller
             query = query.Where(c => c.ReliabilityRating >= vm.MinRating.Value);
 
         var total = await query.CountAsync();
+        vm.TotalResults = total;
         vm.TotalPages = (int)Math.Ceiling(total / (double)vm.PageSize);
 
         vm.Results = await query
@@ -78,7 +82,29 @@ public class CarsController : Controller
             .Take(vm.PageSize)
             .ToListAsync();
 
+        // US02: requests from the page's JavaScript get only the results table
+        if (Request.Headers["X-Requested-With"] == "fetch")
+            return PartialView("_SearchResults", vm);
+
         return View(vm);
+    }
+
+    // GET: Cars/Models?brand=Toyota — models for the selected make (US02 cascading dropdown)
+    [HttpGet]
+    public async Task<IActionResult> Models(string? brand)
+    {
+        if (string.IsNullOrEmpty(brand)) return Json(Array.Empty<string>());
+        return Json(await GetModelsForBrand(brand));
+    }
+
+    private async Task<List<string>> GetModelsForBrand(string brand)
+    {
+        var models = await _context.CarEntries
+            .Where(c => c.CarBrand!.Name == brand)
+            .Select(c => c.Model)
+            .Distinct()
+            .ToListAsync();
+        return models.OrderBy(m => m).ToList();
     }
 
     // GET: Cars/Details/5

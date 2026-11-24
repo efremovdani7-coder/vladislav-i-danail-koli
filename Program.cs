@@ -28,6 +28,12 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/AccessDenied";
 });
 
+// Blocked users are signed out within a minute (US06)
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.FromMinutes(1);
+});
+
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
@@ -38,6 +44,32 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ApplicationDbContext>();
     context.Database.EnsureCreated();
+
+    // EnsureCreated() doesn't change an existing database, so add new columns/indexes by hand.
+    // US01: maintenance cost column
+    var conn = context.Database.GetDbConnection();
+    await conn.OpenAsync();
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('CarEntries') WHERE name = 'MaintenanceCost'";
+        var hasColumn = Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
+        if (!hasColumn)
+        {
+            cmd.CommandText = "ALTER TABLE \"CarEntries\" ADD COLUMN \"MaintenanceCost\" TEXT NULL";
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+    await conn.CloseAsync();
+    // US05: unique nicknames (skipped if the old database already has duplicate nicknames)
+    try
+    {
+        await context.Database.ExecuteSqlRawAsync(
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_AspNetUsers_Nickname\" ON \"AspNetUsers\" (\"Nickname\")");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Could not create unique nickname index - there are duplicate nicknames in the database.");
+    }
 
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();

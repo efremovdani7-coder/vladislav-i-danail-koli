@@ -1,0 +1,66 @@
+@model CarSearchViewModel
+
+@if (Model.Results.Any())
+{
+    <h4 class="mb-3">Намерени: @Model.TotalResults резултата</h4>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Марка</th>
+                    <th>Модел</th>
+                    <th>Година</th>
+                    <th>Пробег</th>
+                    <th>Двигател</th>
+                    <th>Оценка</th>
+                    <th>От</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model.Results)
+                {
+                    <tr>
+                        <td class="fw-semibold">@entry.CarBrand?.Name</td>
+                        <td>@entry.Model</td>
+                        <td>@entry.Year</td>
+                        <td>@entry.Mileage.ToString("N0") км</td>
+                        <td>@Html.DisplayFor(m => entry.EngineType)</td>
+                        <td>
+                            <span class="badge @(entry.ReliabilityRating >= 7 ? "bg-success" : entry.ReliabilityRating >= 4 ? "bg-warning" : "bg-danger")">
+                                @entry.ReliabilityRating/10
+                            </span>
+                        </td>
+                        <td><small>@entry.User?.Nickname</small></td>
+                        <td>
+                            <a asp-controller="Cars" asp-action="Details" asp-route-id="@entry.Id"
+                               class="btn btn-outline-primary btn-sm">Виж</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (Context.Request.QueryString.HasValue)
+{
+    <div class="text-center py-4">
+        <i class="bi bi-emoji-frown display-3 text-muted"></i>
+        <h5 class="mt-3">Няма намерени резултати</h5>
+        <p class="text-muted">Опитай с различни критерии за търсене.</p>
+    </div>
+}
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Страници">
+        <ul class="pagination justify-content-center flex-wrap">
+            @for (int p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
+                    <a class="page-link" href="#" data-page="@p">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

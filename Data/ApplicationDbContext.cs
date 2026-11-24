@@ -18,6 +18,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.HasIndex(u => u.Nickname).IsUnique();
+        });
+
         builder.Entity<CarBrand>(entity =>
         {
             entity.HasIndex(e => e.Name).IsUnique();

@@ -153,6 +153,44 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Users));
     }
 
+    // POST: Admin/BlockUser (US06)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BlockUser(string id)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null) return NotFound();
+
+        if (user.Id == _userManager.GetUserId(User) || await _userManager.IsInRoleAsync(user, "Admin"))
+        {
+            TempData["Error"] = "Администратори не могат да бъдат блокирани.";
+            return RedirectToAction(nameof(Users));
+        }
+
+        await _userManager.SetLockoutEnabledAsync(user, true);
+        await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        // Invalidate the user's login cookie so they are signed out
+        await _userManager.UpdateSecurityStampAsync(user);
+
+        TempData["Success"] = $"Потребител {user.Nickname} е блокиран.";
+        return RedirectToAction(nameof(Users));
+    }
+
+    // POST: Admin/UnblockUser (US06)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnblockUser(string id)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null) return NotFound();
+
+        await _userManager.SetLockoutEndDateAsync(user, null);
+        await _userManager.ResetAccessFailedCountAsync(user);
+
+        TempData["Success"] = $"Потребител {user.Nickname} е отблокиран.";
+        return RedirectToAction(nameof(Users));
+    }
+
     // GET: Admin/Brands
     public async Task<IActionResult> Brands()
     {

@@ -2,6 +2,7 @@ using CarReliability.Models;
 using CarReliability.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CarReliability.Controllers;
 
@@ -32,6 +33,14 @@ public class AccountController : Controller
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
         if (!ModelState.IsValid) return View(model);
+
+        // US05: every nickname must be unique (case-insensitive)
+        var nicknameLower = model.Nickname.ToLower();
+        if (await _userManager.Users.AnyAsync(u => u.Nickname.ToLower() == nicknameLower))
+        {
+            ModelState.AddModelError(nameof(model.Nickname), "Този никнейм вече е зает. Избери друг.");
+            return View(model);
+        }
 
         var user = new ApplicationUser
         {
@@ -90,6 +99,12 @@ public class AccountController : Controller
                 return Redirect(returnUrl);
 
             return RedirectToAction("Index", "Home");
+        }
+
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError(string.Empty, "Акаунтът ви е блокиран от администратор.");
+            return View(model);
         }
 
         ModelState.AddModelError(string.Empty, "Невалиден имейл или парола.");

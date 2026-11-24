@@ -6,7 +6,8 @@ namespace CarReliability.Models;
 public class ApplicationUser : IdentityUser
 {
     [Required(ErrorMessage = "Никнеймът е задължителен.")]
-    [StringLength(50, MinimumLength = 2, ErrorMessage = "Никнеймът трябва да е между 2 и 50 символа.")]
+    [StringLength(20, MinimumLength = 3, ErrorMessage = "Никнеймът трябва да е между 3 и 20 символа.")]
+    [RegularExpression(@"^[a-zA-Zа-яА-ЯёЁ0-9_]+$", ErrorMessage = "Никнеймът може да съдържа само букви, цифри и долна черта (_).")]
     [Display(Name = "Никнейм")]
     public string Nickname { get; set; } = string.Empty;
 

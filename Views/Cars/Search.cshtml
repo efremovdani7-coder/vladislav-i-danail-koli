@@ -8,11 +8,11 @@
 <!-- Search Form -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <form asp-action="Search" method="get">
+        <form asp-action="Search" method="get" id="search-form">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Марка</label>
-                    <select asp-for="Brand" class="form-select">
+                    <select asp-for="Brand" class="form-select" id="brand-select">
                         <option value="">— Всички марки —</option>
                         @foreach (var brand in Model.AvailableBrands)
                         {
@@ -22,7 +22,13 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Модел</label>
-                    <input asp-for="Model" class="form-control" placeholder="напр. Corolla" />
+                    <select asp-for="Model" class="form-select" id="model-select" disabled="@(string.IsNullOrEmpty(Model.Brand))">
+                        <option value="">@(string.IsNullOrEmpty(Model.Brand) ? "— Първо избери марка —" : "— Всички модели —")</option>
+                        @foreach (var m in Model.AvailableModels)
+                        {
+                            <option value="@m" selected="@(Model.Model == m)">@m</option>
+                        }
+                    </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label fw-semibold">Година от</label>
@@ -44,7 +50,7 @@
                         <option value="">— Без филтър —</option>
                         @for (int i = 1; i <= 10; i++)
                         {
-                            <option value="@i">@i и нагоре</option>
+                            <option value="@i" selected="@(Model.MinRating == i)">@i и нагоре</option>
                         }
                     </select>
                 </div>
@@ -58,54 +64,99 @@
     </div>
 </div>
 
-<!-- Results -->
-@if (Model.Results.Any())
-{
-    <h4 class="mb-3">Намерени: @Model.Results.Count резултата</h4>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Марка</th>
-                    <th>Модел</th>
-                    <th>Година</th>
-                    <th>Пробег</th>
-                    <th>Двигател</th>
-                    <th>Оценка</th>
-                    <th>От</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var entry in Model.Results)
-                {
-                    <tr>
-                        <td class="fw-semibold">@entry.CarBrand?.Name</td>
-                        <td>@entry.Model</td>
-                        <td>@entry.Year</td>
-                        <td>@entry.Mileage.ToString("N0") км</td>
-                        <td>@Html.DisplayFor(m => entry.EngineType)</td>
-                        <td>
-                            <span class="badge @(entry.ReliabilityRating >= 7 ? "bg-success" : entry.ReliabilityRating >= 4 ? "bg-warning" : "bg-danger")">
-                                @entry.ReliabilityRating/10
-                            </span>
-                        </td>
-                        <td><small>@entry.User?.Nickname</small></td>
-                        <td>
-                            <a asp-controller="Cars" asp-action="Details" asp-route-id="@entry.Id"
-                               class="btn btn-outline-primary btn-sm">Виж</a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-else if (Context.Request.QueryString.HasValue)
-{
-    <div class="text-center py-4">
-        <i class="bi bi-emoji-frown display-3 text-muted"></i>
-        <h5 class="mt-3">Няма намерени резултати</h5>
-        <p class="text-muted">Опитай с различни критерии за търсене.</p>
-    </div>
+<!-- Results (updated without reloading the page) -->
+<div id="search-results">
+    <partial name="_SearchResults" model="Model" />
+</div>
+
+@section Scripts {
+<script>
+// US02: cascading make -> model dropdown and live search without page reload
+(function () {
+    const form = document.getElementById('search-form');
+    const brandSelect = document.getElementById('brand-select');
+    const modelSelect = document.getElementById('model-select');
+    const results = document.getElementById('search-results');
+    let currentPage = @Model.CurrentPage;
+    let timer = null;
+
+    async function loadModels() {
+        const brand = brandSelect.value;
+        modelSelect.innerHTML = '';
+        const first = document.createElement('option');
+        first.value = '';
+        first.textContent = brand ? '— Всички модели —' : '— Първо избери марка —';
+        modelSelect.appendChild(first);
+        modelSelect.disabled = !brand;
+        if (!brand) return;
+
+        const response = await fetch('@Url.Action("Models", "Cars")?brand=' + encodeURIComponent(brand));
+        const models = await response.json();
+        models.forEach(function (m) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            modelSelect.appendChild(opt);
+        });
+    }
+
+    async function runSearch() {
+        const params = new URLSearchParams(new FormData(form));
+        for (const [key, value] of [...params.entries()]) {
+            if (value === '') params.delete(key);
+        }
+        if (currentPage > 1) params.set('CurrentPage', currentPage);
+
+        const url = form.action + '?' + params.toString();
+        results.style.opacity = '0.5';
+        try {
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
+            results.innerHTML = await response.text();
+            history.replaceState(null, '', url);
+        } finally {
+            results.style.opacity = '1';
+        }
+    }
+
+    function searchSoon(delay) {
+        clearTimeout(timer);
+        timer = setTimeout(runSearch, delay);
+    }
+
+    brandSelect.addEventListener('change', async function () {
+        currentPage = 1;
+        await loadModels();
+        runSearch();
+    });
+
+    form.addEventListener('change', function (e) {
+        if (e.target === brandSelect) return;
+        currentPage = 1;
+        searchSoon(0);
+    });
+
+    // Year fields: wait until the user stops typing
+    form.querySelectorAll('input[type=number]').forEach(function (input) {
+        input.addEventListener('input', function () {
+            currentPage = 1;
+            searchSoon(400);
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        currentPage = 1;
+        runSearch();
+    });
+
+    results.addEventListener('click', function (e) {
+        const link = e.target.closest('[data-page]');
+        if (!link) return;
+        e.preventDefault();
+        currentPage = parseInt(link.dataset.page, 10);
+        runSearch();
+        window.scrollTo({ top: results.offsetTop - 80, behavior: 'smooth' });
+    });
+})();
+</script>
 }
