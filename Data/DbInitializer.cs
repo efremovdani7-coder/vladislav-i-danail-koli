@@ -42,6 +42,17 @@ public static class DbInitializer
 
         if (!await context.CarBrands.AnyAsync())
             await SeedCatalogAsync(context, env, logger);
+
+        // Тестови потребители и отзиви, за да може сайтът да се изпробва веднага
+        if (!bool.TryParse(config["TestData:Seed"], out var seedTest) || seedTest)
+        {
+            var seeder = services.GetRequiredService<CarReliability.Services.TestDataSeeder>();
+            if (!await seeder.HasTestDataAsync())
+            {
+                var added = await seeder.SeedAsync();
+                logger.LogInformation("Добавени тестови данни: {Count} отзива.", added);
+            }
+        }
     }
 
     private static async Task SeedCatalogAsync(ApplicationDbContext context, IWebHostEnvironment env, ILogger logger)
@@ -69,7 +80,22 @@ public static class DbInitializer
                 var model = new CarModel { Name = m.Name };
                 foreach (var g in m.Generations)
                 {
-                    var generation = new CarGeneration { Name = g.Name, YearFrom = g.From, YearTo = g.To };
+                    var generation = new CarGeneration
+                    {
+                        Name = Truncate(g.Name, 150),
+                        YearFrom = g.From,
+                        YearTo = g.To,
+                        Source = CatalogSources.AutoEvolution,
+                        BodyType = Enum.TryParse<BodyType>(g.Body, true, out var body) ? body : BodyType.Hatchback,
+                        LengthMm = DimOf(g, "l"),
+                        WidthMm = DimOf(g, "w"),
+                        HeightMm = DimOf(g, "h"),
+                        WheelbaseMm = DimOf(g, "wb"),
+                        GroundClearanceMm = DimOf(g, "gc"),
+                        CargoLiters = DimOf(g, "cargo"),
+                        WeightKg = DimOf(g, "kg"),
+                        SizesApproximate = g.Approx == 1
+                    };
                     foreach (var e in g.Engines)
                     {
                         var fuel = Enum.TryParse<FuelType>(e.Fuel, out var f) ? f : FuelType.Petrol;
@@ -94,14 +120,23 @@ public static class DbInitializer
             brands.Add(brand);
         }
 
+        // Записваме марка по марка — по-леко за облачна база данни
         context.ChangeTracker.AutoDetectChangesEnabled = false;
-        context.CarBrands.AddRange(brands);
-        await context.SaveChangesAsync();
+        var done = 0;
+        foreach (var brand in brands)
+        {
+            context.CarBrands.Add(brand);
+            await context.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+            if (++done % 10 == 0) logger.LogInformation("  ... {Done}/{Total} марки", done, brands.Count);
+        }
         context.ChangeTracker.AutoDetectChangesEnabled = true;
-        context.ChangeTracker.Clear();
 
         logger.LogInformation("Каталогът е зареден: {Brands} марки.", brands.Count);
     }
+
+    private static int? DimOf(GenerationJson g, string key) =>
+        g.Dim != null && g.Dim.TryGetValue(key, out var v) && v > 0 ? v : null;
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];
 
@@ -127,6 +162,9 @@ public static class DbInitializer
         [JsonPropertyName("n")] public string Name { get; set; } = "";
         [JsonPropertyName("from")] public int From { get; set; }
         [JsonPropertyName("to")] public int To { get; set; }
+        [JsonPropertyName("body")] public string? Body { get; set; }
+        [JsonPropertyName("dim")] public Dictionary<string, int>? Dim { get; set; }
+        [JsonPropertyName("approx")] public int? Approx { get; set; }
         [JsonPropertyName("e")] public List<EngineJson> Engines { get; set; } = new();
     }
 

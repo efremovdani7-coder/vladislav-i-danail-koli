@@ -244,3 +244,24 @@
     .compare-table th:first-child { width: auto; }
     .chat-msg { max-width: 90%; }
 }
+
+/* Сравнение на размерите (US03, по идея на carsized.com) */
+.size-canvas {
+    background: linear-gradient(180deg, var(--bs-tertiary-bg) 0%, var(--bs-body-bg) 100%);
+    border-radius: .75rem;
+    padding: .5rem;
+    min-height: 200px;
+}
+
+.size-svg { color: var(--bs-body-color); display: block; font-family: inherit; }
+
+.legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: .35rem;
+    vertical-align: -1px;
+}
+
+.diff-cell { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--bs-primary); }

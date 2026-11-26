@@ -13,6 +13,18 @@ public enum FuelType
     [Display(Name = "Метан (CNG)")] CNG
 }
 
+public enum BodyType
+{
+    [Display(Name = "Седан")] Sedan,
+    [Display(Name = "Хечбек")] Hatchback,
+    [Display(Name = "Комби")] Wagon,
+    [Display(Name = "SUV / джип")] Suv,
+    [Display(Name = "Купе")] Coupe,
+    [Display(Name = "Кабрио")] Convertible,
+    [Display(Name = "Ван / миниван")] Van,
+    [Display(Name = "Пикап")] Pickup
+}
+
 /// <summary>Категории дефекти (може да се изберат няколко) — използват се в кръговата графика (US04).</summary>
 [Flags]
 public enum DefectCategory
@@ -54,6 +66,19 @@ public static class EnumText
         FuelType.LPG => "Газ (LPG)",
         FuelType.CNG => "Метан (CNG)",
         _ => fuel.ToString()
+    };
+
+    public static string Body(BodyType body) => body switch
+    {
+        BodyType.Sedan => "Седан",
+        BodyType.Hatchback => "Хечбек",
+        BodyType.Wagon => "Комби",
+        BodyType.Suv => "SUV / джип",
+        BodyType.Coupe => "Купе",
+        BodyType.Convertible => "Кабрио",
+        BodyType.Van => "Ван / миниван",
+        BodyType.Pickup => "Пикап",
+        _ => body.ToString()
     };
 
     public static IEnumerable<string> DefectNames(DefectCategory defects) =>

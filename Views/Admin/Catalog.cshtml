@@ -1,0 +1,115 @@
+@model AdminCatalogViewModel
+@{
+    ViewData["Title"] = "Админ — каталог и тестови данни";
+}
+
+<partial name="_AdminNav" />
+
+<div class="alert @(Model.DatabaseWarning == null ? "alert-primary" : "alert-warning")">
+    <i class="bi bi-database me-2"></i><strong>База данни:</strong> @Model.DatabaseDescription
+    @if (Model.DatabaseWarning != null)
+    {
+        <div class="small mt-1">@Model.DatabaseWarning</div>
+    }
+    <div class="small mt-1">Регистрираните потребители са в таблицата <code>AspNetUsers</code> (ролите — в <code>AspNetUserRoles</code>, входовете с Google/Facebook — в <code>AspNetUserLogins</code>).</div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="section-title mb-3">Каталог с автомобили</h4>
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-6 col-md-3"><div class="spec-tile"><div class="fs-4 fw-bold text-primary">@Model.Brands</div><small class="text-body-secondary">марки</small></div></div>
+                    <div class="col-6 col-md-3"><div class="spec-tile"><div class="fs-4 fw-bold text-primary">@Model.Models.ToString("N0")</div><small class="text-body-secondary">модела</small></div></div>
+                    <div class="col-6 col-md-3"><div class="spec-tile"><div class="fs-4 fw-bold text-primary">@((Model.AutoEvolutionGenerations + Model.EpaGenerations).ToString("N0"))</div><small class="text-body-secondary">поколения/версии</small></div></div>
+                    <div class="col-6 col-md-3"><div class="spec-tile"><div class="fs-4 fw-bold text-primary">@Model.GenerationsWithSizes.ToString("N0")</div><small class="text-body-secondary">с размери</small></div></div>
+                </div>
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Източник</th><th class="text-end">Версии</th><th class="text-end">Двигатели</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>Европейски и световни модели — autoevolution.com (поколения, двигатели, размери)</td>
+                            <td class="text-end">@Model.AutoEvolutionGenerations.ToString("N0")</td>
+                            <td class="text-end">@Model.AutoEvolutionEngines.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td>Публична база FuelEconomy.gov (EPA, САЩ) — модели, двигатели и кутии по години</td>
+                            <td class="text-end">@Model.EpaGenerations.ToString("N0")</td>
+                            <td class="text-end">@Model.EpaEngines.ToString("N0")</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <form asp-action="ImportPublicData" method="post" class="d-flex flex-wrap align-items-center gap-2">
+                    <button class="btn btn-primary" disabled="@Model.ImportRunning">
+                        <i class="bi bi-cloud-download me-1"></i>@(Model.ImportRunning ? "Импортът работи..." : "Обнови от FuelEconomy.gov")
+                    </button>
+                    <span class="small text-body-secondary">Изтегля ~2 MB от сайта на EPA и добавя новите модели. Отнема 1–3 минути.</span>
+                </form>
+                <p class="small text-body-secondary mt-2 mb-0">
+                    <i class="bi bi-upc-scan me-1"></i>Публичната база <strong>NHTSA vPIC</strong> се използва при добавяне на кола — за разчитане на VIN номер.
+                </p>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="mb-3">История на импортите</h5>
+                @if (Model.Imports.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm small align-middle mb-0">
+                            <thead><tr><th>Започнат</th><th>Статус</th><th class="text-end">+Марки</th><th class="text-end">+Модели</th><th class="text-end">+Версии</th><th class="text-end">+Двигатели</th></tr></thead>
+                            <tbody>
+                                @foreach (var i in Model.Imports)
+                                {
+                                    <tr title="@i.Message">
+                                        <td class="text-nowrap">@i.StartedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td>
+                                            <span class="badge @(i.Status == "Успешен" ? "bg-success" : i.Status == "Грешка" ? "bg-danger" : "bg-warning text-dark")">@i.Status</span>
+                                            @if (i.Status == "Грешка") { <div class="text-danger">@i.Message</div> }
+                                        </td>
+                                        <td class="text-end">@i.BrandsAdded</td>
+                                        <td class="text-end">@i.ModelsAdded</td>
+                                        <td class="text-end">@i.GenerationsAdded</td>
+                                        <td class="text-end">@i.EnginesAdded</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="small text-body-secondary mb-0">Все още няма импорти. Първият започва автоматично ~15 секунди след стартиране на сайта (ако има интернет).</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h4 class="section-title mb-3">Тестови данни</h4>
+                <p class="small text-body-secondary">
+                    Тестови потребители (никнейм „Тест_...“, парола <code>test123</code>) с примерни отзиви, коментари, звезди и съобщения —
+                    за да се види как работят класациите, графиките и сравнението. Тестовите отзиви са отбелязани с „[Тестови данни]“.
+                </p>
+                <ul class="small">
+                    <li>Тестови потребители: <strong>@Model.TestUsers</strong></li>
+                    <li>Тестови отзиви: <strong>@Model.TestEntries</strong></li>
+                </ul>
+                <div class="d-flex flex-wrap gap-2">
+                    <form asp-action="AddTestData" method="post">
+                        <button class="btn btn-outline-primary" disabled="@(Model.TestUsers > 0)"><i class="bi bi-plus-circle me-1"></i>Добави тестови данни</button>
+                    </form>
+                    <form asp-action="RemoveTestData" method="post" onsubmit="return confirm('Да изтрия ли всички тестови потребители и техните данни?')">
+                        <button class="btn btn-outline-danger" disabled="@(Model.TestUsers == 0)"><i class="bi bi-trash me-1"></i>Изтрий тестовите данни</button>
+                    </form>
+                </div>
+                <p class="small text-body-secondary mt-3 mb-0">Пример за вход: <code>ivan@test.bg</code> / <code>test123</code></p>
+            </div>
+        </div>
+    </div>
+</div>

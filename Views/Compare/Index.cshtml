@@ -1,135 +1,294 @@
 @model CompareViewModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Сравнение";
-    int? decadeBrandId = ViewBag.DecadeBrandId;
-    string Money(decimal? v) => v.HasValue ? v.Value.ToString("N0") + " €" : "—";
-    string Rating(ReliabilityStats s) => s.Entries > 0 ? s.AvgRating.ToString("0.0") + "/10" : "—";
+    var bg = CultureInfo.GetCultureInfo("bg-BG");
+    string M(int? mm) => mm.HasValue ? (mm.Value / 1000.0).ToString("0.000", bg) + " м" : "—";
+    string Mm(int? mm) => mm.HasValue ? mm.Value.ToString("N0", bg) + " мм" : "—";
+    string Diff(int? a, int? b, string unit)
+    {
+        if (!a.HasValue || !b.HasValue) return "";
+        var d = a.Value - b.Value;
+        if (d == 0) return "=";
+        return unit == "cm" ? (d / 10.0).ToString("+0.#;-0.#", bg) + " см" : d.ToString("+#,0;-#,0", bg) + " " + unit;
+    }
+    string Hp(CompareCar c) => !c.MaxPowerHp.HasValue ? "—" : c.MinPowerHp == c.MaxPowerHp ? $"{c.MaxPowerHp} к.с." : $"{c.MinPowerHp}–{c.MaxPowerHp} к.с.";
+    string Rating(ReliabilityStats s) => s.Entries > 0 ? s.AvgRating.ToString("0.0", bg) + "/10" : "—";
+    string Money(decimal? v) => v.HasValue ? v.Value.ToString("N0", bg) + " €" : "—";
+    var a = Model.CarA;
+    var b = Model.CarB;
+    var both = a != null && b != null;
+    object? Js(CompareCar? c) => c == null ? null : new
+    {
+        label = c.Title + " (" + c.Generation.Years + ")",
+        @short = c.Generation.CarModel?.CarBrand?.Name + " " + c.Generation.CarModel?.Name + " (" + c.Generation.Years + ")",
+        body = c.Generation.BodyType.ToString(),
+        length = c.Sizes.Length, width = c.Sizes.Width, height = c.Sizes.Height,
+        wheelbase = c.Sizes.Wheelbase, clearance = c.Sizes.Clearance
+    };
+    var slots = new[] { (Slot: Model.A, Key: "A", Color: "#1d5fe0", Title: "Кола A"), (Slot: Model.B, Key: "B", Color: "#f08c00", Title: "Кола B") };
 }
 
-<h2 class="mb-1"><i class="bi bi-layout-split me-2 text-primary"></i>Сравнение на модели</h2>
-<p class="text-body-secondary">Изберете 2 или 3 модела и вижте показателите им рамо до рамо — включително дали по-старите коли (произведени преди избраната година) са по-здрави от по-новите.</p>
+<h2 class="mb-1"><i class="bi bi-rulers me-2 text-primary"></i>Сравнение на автомобили</h2>
+<p class="text-body-secondary">Изберете марка, модел и <strong>поколение</strong> за всяка кола. Ще видите размерите им в реален мащаб една до друга, разликите и надеждността им.</p>
 
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <form asp-action="Index" method="get" id="compare-form">
-            <div class="row g-3">
-                @for (var i = 0; i < Model.Slots.Count; i++)
-                {
-                    var slot = Model.Slots[i];
-                    <div class="col-md-4">
-                        <div class="border rounded-3 p-3 h-100">
-                            <div class="fw-semibold mb-2 text-primary">Модел @(i + 1)@(i == 2 ? " (по желание)" : "")</div>
-                            <select name="brandIds" id="brand-@i" class="form-select mb-2" aria-label="Марка @(i + 1)"
-                                    data-cascade-target="#model-@i" data-cascade-url="/api/catalog/models?brandId="
-                                    data-cascade-empty="— Изберете модел —" data-cascade-disabled="— Първо изберете марка —">
-                                <option value="">— Изберете марка —</option>
-                                @foreach (var b in Model.Brands)
-                                {
-                                    <option value="@b.Value" selected="@(slot.BrandId?.ToString() == b.Value)">@b.Text</option>
-                                }
-                            </select>
-                            <select name="modelIds" id="model-@i" class="form-select" aria-label="Модел @(i + 1)" disabled="@(!slot.Models.Any())">
-                                <option value="">@(slot.Models.Any() ? "— Изберете модел —" : "— Първо изберете марка —")</option>
-                                @foreach (var m in slot.Models)
-                                {
-                                    <option value="@m.Value" selected="@(slot.ModelId?.ToString() == m.Value)">@m.Text</option>
-                                }
-                            </select>
-                        </div>
+<!-- Избор на двете коли -->
+<form asp-action="Index" method="get" id="compare-form">
+    <input type="hidden" name="decadeBrandId" value="@Model.DecadeBrandId" />
+    <div class="row g-3 align-items-stretch mb-4">
+        @foreach (var s in slots)
+        {
+            var slot = s.Slot;
+            var lower = s.Key.ToLower();
+            <div class="col-md-5 @(s.Key == "B" ? "order-md-3" : "")">
+                <div class="card border-0 shadow-sm h-100" style="border-top: 5px solid @s.Color !important">
+                    <div class="card-body">
+                        <div class="fw-bold mb-2" style="color: @s.Color">@s.Title</div>
+                        <select name="brand@(s.Key)" id="brand-@lower" class="form-select mb-2" aria-label="Марка (@s.Title)"
+                                data-cascade-target="#model-@lower" data-cascade-url="/api/catalog/models?brandId="
+                                data-cascade-empty="— Изберете модел —" data-cascade-disabled="— Първо изберете марка —">
+                            <option value="">— Изберете марка —</option>
+                            @foreach (var x in Model.Brands)
+                            {
+                                <option value="@x.Value" selected="@(slot.BrandId?.ToString() == x.Value)">@x.Text</option>
+                            }
+                        </select>
+                        <select name="model@(s.Key)" id="model-@lower" class="form-select mb-2" aria-label="Модел (@s.Title)" disabled="@(!slot.Models.Any())"
+                                data-cascade-target="#gen-@lower" data-cascade-url="/api/catalog/generations?modelId="
+                                data-cascade-empty="— Изберете поколение —" data-cascade-disabled="— Първо изберете модел —">
+                            <option value="">@(slot.Models.Any() ? "— Изберете модел —" : "— Първо изберете марка —")</option>
+                            @foreach (var x in slot.Models)
+                            {
+                                <option value="@x.Value" selected="@(slot.ModelId?.ToString() == x.Value)">@x.Text</option>
+                            }
+                        </select>
+                        <select name="@lower" id="gen-@lower" class="form-select auto-submit" aria-label="Поколение (@s.Title)" disabled="@(!slot.Generations.Any())">
+                            <option value="">@(slot.Generations.Any() ? "— Изберете поколение —" : "— Първо изберете модел —")</option>
+                            @foreach (var x in slot.Generations)
+                            {
+                                <option value="@x.Value" selected="@(slot.GenerationId?.ToString() == x.Value)">@x.Text</option>
+                            }
+                        </select>
                     </div>
-                }
-                <div class="col-md-4">
-                    <label for="splitYear" class="form-label fw-semibold">Граница „стари / нови“</label>
-                    <select name="splitYear" id="splitYear" class="form-select">
-                        @for (var y = DateTime.Now.Year - 1; y >= 1995; y--)
-                        {
-                            <option value="@y" selected="@(Model.SplitYear == y)">@y г.</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-8 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right me-1"></i>Сравни</button>
                 </div>
             </div>
-        </form>
+        }
+        <div class="col-md-2 order-md-2 d-flex flex-md-column align-items-center justify-content-center gap-2">
+            <span class="display-6 fw-bold text-body-secondary">VS</span>
+            @if (both)
+            {
+                <a asp-action="Index" asp-route-a="@b!.Generation.Id" asp-route-b="@a!.Generation.Id" asp-route-decadeBrandId="@Model.DecadeBrandId" class="btn btn-sm btn-outline-primary" title="Размени A и B"><i class="bi bi-arrow-left-right me-1"></i>Размени</a>
+            }
+        </div>
     </div>
-</div>
+    <noscript><button type="submit" class="btn btn-primary mb-4">Сравни</button></noscript>
+</form>
 
-@if (Model.Results.Any())
+@if (a == null && b == null)
 {
+    <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Изберете поне една кола, за да видите размерите ѝ.
+        Можете да сравните и две поколения на един и същ модел, за да видите как се е променил.</div>
+}
+else
+{
+    <!-- Размери в мащаб -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h4 class="section-title mb-0">Размери в реален мащаб</h4>
+                <div class="d-flex flex-wrap gap-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Изглед">
+                        <button type="button" class="btn btn-outline-primary active" data-size-view="side"><i class="bi bi-car-front me-1"></i>Отстрани</button>
+                        <button type="button" class="btn btn-outline-primary" data-size-view="front"><i class="bi bi-square me-1"></i>Отпред</button>
+                    </div>
+                    @if (both)
+                    {
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Режим">
+                            <button type="button" class="btn btn-outline-primary active" data-size-mode="apart">Една до друга</button>
+                            <button type="button" class="btn btn-outline-primary" data-size-mode="overlay">Една върху друга</button>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div id="size-canvas" class="size-canvas"></div>
+            <div class="d-flex flex-wrap gap-3 small mt-2">
+                @if (a != null)
+                {
+                    <span><span class="legend-dot" style="background:#1d5fe0"></span>@a.Title (@a.Generation.Years)</span>
+                }
+                @if (b != null)
+                {
+                    <span><span class="legend-dot" style="background:#f08c00"></span>@b.Title (@b.Generation.Years)</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (both && Model.Summary.Any())
+    {
+        <div class="alert alert-primary">
+            <i class="bi bi-chat-square-text me-2"></i><strong>@a!.Title (@a.Generation.Years)</strong> е
+            @string.Join(", ", Model.Summary.Take(Model.Summary.Count - 1))@(Model.Summary.Count > 1 ? " и " : "")@Model.Summary.Last()
+            от <strong>@b!.Title (@b.Generation.Years)</strong>.
+        </div>
+    }
+
+    <!-- Таблица с размерите и надеждността -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="table-responsive">
             <table class="table align-middle mb-0 compare-table">
                 <thead class="table-blue">
                     <tr>
                         <th>Показател</th>
-                        @foreach (var r in Model.Results)
+                        @if (a != null)
                         {
-                            <th class="text-center"><a asp-controller="Models" asp-action="Details" asp-route-id="@r.Model.Id" class="link-light text-decoration-none">@r.Model.FullName</a></th>
+                            <th class="text-center">@a.Title<div class="small fw-normal opacity-75">@a.Generation.Years · @EnumText.Body(a.Generation.BodyType)</div></th>
+                        }
+                        @if (b != null)
+                        {
+                            <th class="text-center">@b.Title<div class="small fw-normal opacity-75">@b.Generation.Years · @EnumText.Body(b.Generation.BodyType)</div></th>
+                        }
+                        @if (both)
+                        {
+                            <th class="text-center">Разлика (A − B)</th>
                         }
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><th>Индекс на надеждност</th>@foreach (var r in Model.Results) { <td class="text-center"><partial name="_IndexBadge" model="r.Stats" /></td> }</tr>
-                    <tr><th>Брой отзиви</th>@foreach (var r in Model.Results) { <td class="text-center">@r.Stats.Entries</td> }</tr>
-                    <tr><th>Средна оценка на собствениците</th>@foreach (var r in Model.Results) { <td class="text-center">@Rating(r.Stats)</td> }</tr>
-                    <tr><th>Среден годишен разход за поддръжка</th>@foreach (var r in Model.Results) { <td class="text-center">@Money(r.Stats.AvgCost)</td> }</tr>
-                    <tr><th>Среден пробег</th>@foreach (var r in Model.Results) { <td class="text-center">@(r.Stats.AvgMileage.HasValue ? r.Stats.AvgMileage.Value.ToString("N0") + " км" : "—")</td> }</tr>
-                    <tr><th>Чести дефекти</th>@foreach (var r in Model.Results) { <td class="text-center small">@(r.Stats.DefectCounts.Any() ? string.Join(", ", r.Stats.DefectCounts.Take(3).Select(d => d.Name)) : "—")</td> }</tr>
-                    <tr><th>Средна оценка от потребители</th>@foreach (var r in Model.Results) { <td class="text-center">@(r.Stats.AvgStars.HasValue ? r.Stats.AvgStars.Value.ToString("0.0") + " ★ (" + r.Stats.StarVotes + ")" : "—")</td> }</tr>
-                    <tr><th>Години на производство</th>@foreach (var r in Model.Results) { <td class="text-center">@(r.YearFrom.HasValue ? r.YearFrom + "–" + r.YearTo : "—")</td> }</tr>
-                    <tr class="table-group-divider"><th>Произведени преди @Model.SplitYear г.</th>@foreach (var r in Model.Results) { <td class="text-center"><partial name="_IndexBadge" model="r.OldStats" /><div class="small text-body-secondary">@r.OldStats.Entries отзива · @Money(r.OldStats.AvgCost)</div></td> }</tr>
-                    <tr><th>Произведени от @Model.SplitYear г. нататък</th>@foreach (var r in Model.Results) { <td class="text-center"><partial name="_IndexBadge" model="r.NewStats" /><div class="small text-body-secondary">@r.NewStats.Entries отзива · @Money(r.NewStats.AvgCost)</div></td> }</tr>
-                    <tr>
-                        <th>Извод</th>
-                        @foreach (var r in Model.Results)
+                    @{
+                        var rows = new List<(string Name, Func<CompareCar, string> Value, Func<CompareCar, int?> Raw, string Unit, string Note)>
                         {
-                            <td class="text-center small">
-                                @if (r.OldStats.Entries == 0 || r.NewStats.Entries == 0)
-                                {
-                                    <span class="text-body-secondary">Нужни са отзиви и за стари, и за нови коли</span>
-                                }
-                                else if (r.OldStats.Index > r.NewStats.Index)
-                                {
-                                    <span class="text-success fw-semibold">По-старите са по-здрави (+@(r.OldStats.Index - r.NewStats.Index))</span>
-                                }
-                                else if (r.NewStats.Index > r.OldStats.Index)
-                                {
-                                    <span class="text-primary fw-semibold">По-новите са по-здрави (+@(r.NewStats.Index - r.OldStats.Index))</span>
-                                }
-                                else
-                                {
-                                    <span>Еднакво надеждни</span>
-                                }
-                            </td>
+                            ("Дължина", c => M(c.Sizes.Length), c => c.Sizes.Length, "cm", "¹"),
+                            ("Ширина (без огледала)", c => M(c.Sizes.Width), c => c.Sizes.Width, "cm", ""),
+                            ("Височина", c => M(c.Sizes.Height), c => c.Sizes.Height, "cm", ""),
+                            ("Междуосие", c => M(c.Sizes.Wheelbase), c => c.Sizes.Wheelbase, "cm", ""),
+                            ("Пътен просвет (клиренс)", c => Mm(c.Sizes.Clearance), c => c.Sizes.Clearance, "cm", ""),
+                            ("Багажник", c => c.Sizes.Cargo.HasValue ? c.Sizes.Cargo + " л" : "—", c => c.Sizes.Cargo, "л", "²"),
+                            ("Собствено тегло", c => c.Sizes.Weight.HasValue ? c.Sizes.Weight.Value.ToString("N0", bg) + " кг" : "—", c => c.Sizes.Weight, "кг", "")
+                        };
+                    }
+                    @foreach (var row in rows)
+                    {
+                        var ra = a == null ? null : row.Raw(a);
+                        var rb = b == null ? null : row.Raw(b);
+                        <tr>
+                            <th>@row.Name<sup>@row.Note</sup></th>
+                            @if (a != null)
+                            {
+                                <td class="text-center @(both && ra > rb ? "fw-bold" : "")">@row.Value(a)</td>
+                            }
+                            @if (b != null)
+                            {
+                                <td class="text-center @(both && rb > ra ? "fw-bold" : "")">@row.Value(b)</td>
+                            }
+                            @if (both)
+                            {
+                                <td class="text-center diff-cell">@Diff(ra, rb, row.Unit)</td>
+                            }
+                        </tr>
+                    }
+                    <tr class="table-group-divider">
+                        <th>Мощност (двигатели в каталога)</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center">@Hp(c!)<div class="small text-body-secondary">@c!.EngineCount двигателя</div></td>
                         }
+                        @if (both) { <td></td> }
+                    </tr>
+                    <tr>
+                        <th>Гориво</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center small">@string.Join(", ", c!.Fuels)</td>
+                        }
+                        @if (both) { <td></td> }
+                    </tr>
+                    <tr class="table-group-divider">
+                        <th>Индекс на надеждност — това поколение</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center"><partial name="_IndexBadge" model="c!.GenerationStats" /><div class="small text-body-secondary">@c.GenerationStats.Entries отзива</div></td>
+                        }
+                        @if (both)
+                        {
+                            <td class="text-center diff-cell">@(a!.GenerationStats.HasData && b!.GenerationStats.HasData ? Diff(a.GenerationStats.Index, b.GenerationStats.Index, "т.") : "")</td>
+                        }
+                    </tr>
+                    <tr>
+                        <th>Индекс на надеждност — целият модел</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center"><partial name="_IndexBadge" model="c!.ModelStats" /></td>
+                        }
+                        @if (both)
+                        {
+                            <td class="text-center diff-cell">@(a!.ModelStats.HasData && b!.ModelStats.HasData ? Diff(a.ModelStats.Index, b.ModelStats.Index, "т.") : "")</td>
+                        }
+                    </tr>
+                    <tr>
+                        <th>Средна оценка на собствениците</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center">@Rating(c!.GenerationStats)</td>
+                        }
+                        @if (both) { <td></td> }
+                    </tr>
+                    <tr>
+                        <th>Поддръжка на година</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center">@Money(c!.GenerationStats.AvgCost)</td>
+                        }
+                        @if (both) { <td></td> }
+                    </tr>
+                    <tr>
+                        <th>Чести дефекти</th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center small">@(c!.GenerationStats.DefectCounts.Any() ? string.Join(", ", c.GenerationStats.DefectCounts.Take(3).Select(d => d.Name)) : "—")</td>
+                        }
+                        @if (both) { <td></td> }
+                    </tr>
+                    <tr>
+                        <th></th>
+                        @foreach (var c in new[] { a, b }.Where(c => c != null))
+                        {
+                            <td class="text-center"><a asp-controller="Models" asp-action="Details" asp-route-id="@c!.Generation.CarModelId" class="btn btn-sm btn-outline-primary">Към модела</a></td>
+                        }
+                        @if (both) { <td></td> }
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
-}
-else
-{
-    <div class="alert alert-info mb-4"><i class="bi bi-info-circle me-2"></i>Изберете поне един модел, за да видите сравнението.</div>
+
+    <div class="small text-body-secondary mb-4">
+        <p class="mb-1"><sup>¹</sup> Размери по данни на производителя (каталог autoevolution.com). Силуетите са схематични според вида купе, но са нарисувани в реален мащаб.</p>
+        <p class="mb-1"><sup>²</sup> Обем на багажника по стандарта, посочен от производителя — може да се различава между марките.</p>
+        @foreach (var c in new[] { a, b }.Where(c => c != null && c.Sizes.Approximate))
+        {
+            <p class="mb-1 text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>@c!.Title: размерите са приблизителни — взети от @(c.Sizes.TakenFrom ?? "съседно поколение на модела").</p>
+        }
+        @foreach (var c in new[] { a, b }.Where(c => c != null && !c.Sizes.HasMain))
+        {
+            <p class="mb-1 text-danger"><i class="bi bi-exclamation-triangle me-1"></i>@c!.Title: няма данни за размерите — рисунката е по типични стойности за този вид купе.</p>
+        }
+    </div>
 }
 
+<!-- Стари срещу нови коли -->
 <div class="card border-0 shadow-sm">
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h4 class="section-title mb-0">Стари срещу нови коли — @Model.ByDecadeTitle</h4>
+            <h4 class="section-title mb-0">По-старите коли по-здрави ли са? — @Model.ByDecadeTitle</h4>
             <form asp-action="Index" method="get" class="d-flex gap-2">
-                @foreach (var s in Model.Slots)
-                {
-                    <input type="hidden" name="brandIds" value="@s.BrandId" />
-                    <input type="hidden" name="modelIds" value="@s.ModelId" />
-                }
-                <input type="hidden" name="splitYear" value="@Model.SplitYear" />
+                <input type="hidden" name="a" value="@Model.A.GenerationId" />
+                <input type="hidden" name="b" value="@Model.B.GenerationId" />
                 <select name="decadeBrandId" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Марка за графиката">
                     <option value="">Всички марки</option>
-                    @foreach (var b in Model.Brands)
+                    @foreach (var x in Model.Brands)
                     {
-                        <option value="@b.Value" selected="@(decadeBrandId?.ToString() == b.Value)">@b.Text</option>
+                        <option value="@x.Value" selected="@(Model.DecadeBrandId?.ToString() == x.Value)">@x.Text</option>
                     }
                 </select>
             </form>
@@ -148,11 +307,18 @@ else
 
 @section Scripts {
     <script>
-        // изключените (disabled) менюта не се изпращат, затова ги включваме преди изпращане — така трите позиции не се разместват
-        document.getElementById('compare-form').addEventListener('submit', function () {
-            this.querySelectorAll('select:disabled').forEach(function (s) { s.disabled = false; });
+        window.compareCars = [@Json.Serialize(Js(a)), @Json.Serialize(Js(b))];
+        // при избор на поколение сравнението се обновява веднага
+        document.querySelectorAll('#compare-form .auto-submit').forEach(function (s) {
+            s.addEventListener('change', function () {
+                if (!s.value) return;
+                const form = document.getElementById('compare-form');
+                form.querySelectorAll('select:disabled').forEach(function (x) { x.disabled = false; });
+                form.submit();
+            });
         });
     </script>
+    <script src="~/js/compare.js" asp-append-version="true"></script>
     @if (Model.ByDecade.HasData)
     {
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

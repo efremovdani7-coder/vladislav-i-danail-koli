@@ -1,6 +1,7 @@
 using System.Text;
 using CarReliability.Data;
 using CarReliability.Models;
+using CarReliability.Services;
 using CarReliability.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -167,6 +168,56 @@ public class AdminController : Controller
         await _userManager.DeleteAsync(user);
         TempData["Success"] = $"Потребител {user.Nickname} е изтрит заедно с данните си.";
         return RedirectToAction(nameof(Users));
+    }
+
+    // ---------- Каталог, публични бази и тестови данни ----------
+
+    public async Task<IActionResult> Catalog([FromServices] PublicCatalogImporter importer, [FromServices] DatabaseSettings database)
+    {
+        return View(new AdminCatalogViewModel
+        {
+            Brands = await _context.CarBrands.CountAsync(),
+            Models = await _context.CarModels.CountAsync(),
+            AutoEvolutionGenerations = await _context.CarGenerations.CountAsync(g => g.Source == CatalogSources.AutoEvolution),
+            EpaGenerations = await _context.CarGenerations.CountAsync(g => g.Source == CatalogSources.Epa),
+            AutoEvolutionEngines = await _context.CarEngines.CountAsync(e => e.CarGeneration!.Source == CatalogSources.AutoEvolution),
+            EpaEngines = await _context.CarEngines.CountAsync(e => e.CarGeneration!.Source == CatalogSources.Epa),
+            GenerationsWithSizes = await _context.CarGenerations.CountAsync(g => g.LengthMm != null),
+            Imports = await _context.CatalogImports.OrderByDescending(i => i.StartedAt).Take(20).ToListAsync(),
+            ImportRunning = importer.IsRunning,
+            TestUsers = await _context.Users.CountAsync(u => u.IsTestAccount),
+            TestEntries = await _context.CarEntries.CountAsync(e => e.User!.IsTestAccount),
+            DatabaseDescription = database.Description,
+            DatabaseWarning = database.Warning
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult ImportPublicData([FromServices] PublicCatalogImporter importer)
+    {
+        TempData[importer.StartInBackground() ? "Success" : "Error"] = importer.IsRunning
+            ? "Импортът от FuelEconomy.gov започна във фонов режим. Обновете страницата след 1–2 минути."
+            : "Импортът вече работи.";
+        return RedirectToAction(nameof(Catalog));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddTestData([FromServices] TestDataSeeder seeder)
+    {
+        var added = await seeder.SeedAsync();
+        TempData[added > 0 ? "Success" : "Error"] = added > 0 ? $"Добавени са тестови данни ({added} отзива)." : "Тестовите данни вече са добавени.";
+        return RedirectToAction(nameof(Catalog));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveTestData([FromServices] TestDataSeeder seeder)
+    {
+        var removed = await seeder.RemoveAsync();
+        TempData["Success"] = $"Изтрити са {removed} тестови потребители заедно с техните отзиви, коментари и съобщения.";
+        return RedirectToAction(nameof(Catalog));
     }
 
     // ---------- История на влизанията ----------

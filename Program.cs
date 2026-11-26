@@ -7,9 +7,17 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// База данни (SQLite — файл avtonadejdnost.db в папката на проекта)
+// База данни: PostgreSQL сървър (напр. безплатна облачна база в Neon) или, ако няма въведена
+// връзка, локален SQLite файл avtonadejdnost.db — за да може сайтът винаги да стартира.
+var database = DatabaseSettings.Resolve(builder.Configuration);
+builder.Services.AddSingleton(database);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (database.IsPostgres)
+        options.UseNpgsql(database.ConnectionString);
+    else
+        options.UseSqlite(database.ConnectionString);
+});
 
 // Потребители и роли (ASP.NET Core Identity)
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -63,6 +71,17 @@ builder.Services.AddScoped<LoginHistoryService>();
 builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailBackgroundService>();
 
+// Публични бази данни за автомобили: FuelEconomy.gov (EPA) и NHTSA vPIC (VIN)
+builder.Services.AddHttpClient("public-data", c =>
+{
+    c.Timeout = TimeSpan.FromMinutes(5);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("AvtoNadejdnost/1.0 (school project)");
+});
+builder.Services.AddSingleton<PublicCatalogImporter>();
+builder.Services.AddScoped<VinDecoder>();
+builder.Services.AddHostedService<PublicCatalogImportService>();
+builder.Services.AddScoped<TestDataSeeder>();
+
 builder.Services.AddSignalR();
 builder.Services.AddControllersWithViews(options =>
 {
@@ -82,6 +101,9 @@ builder.Services.AddControllersWithViews(options =>
 });
 
 var app = builder.Build();
+
+app.Logger.LogInformation("База данни: {Database}", database.Description);
+if (database.Warning != null) app.Logger.LogWarning("{Warning}", database.Warning);
 
 // Създаване на базата, администратора и зареждане на каталога
 using (var scope = app.Services.CreateScope())

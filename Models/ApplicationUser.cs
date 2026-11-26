@@ -14,5 +14,8 @@ public class ApplicationUser : IdentityUser
 
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Тестов акаунт (създаден автоматично, за да може сайтът да се изпробва).</summary>
+    public bool IsTestAccount { get; set; }
+
     public ICollection<CarEntry> CarEntries { get; set; } = new List<CarEntry>();
 }

@@ -17,7 +17,7 @@
                     var u = row.User;
                     var isAdmin = row.Roles.Contains("Admin");
                     <tr>
-                        <td class="fw-semibold"><i class="bi bi-person-circle me-1 text-primary"></i>@u.Nickname</td>
+                        <td class="fw-semibold"><i class="bi bi-person-circle me-1 text-primary"></i>@u.Nickname @if (u.IsTestAccount) { <span class="badge text-bg-secondary">тест</span> }</td>
                         <td class="d-none d-md-table-cell">@u.Email</td>
                         <td>@foreach (var r in row.Roles) { <span class="badge @(r == "Admin" ? "bg-danger" : "bg-primary") me-1">@(r == "Admin" ? "Админ" : "Потребител")</span> }</td>
                         <td class="text-center"><a asp-action="Index" asp-route-filterUser="@u.Id">@row.EntriesCount</a></td>

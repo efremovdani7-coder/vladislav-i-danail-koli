@@ -253,6 +253,8 @@ public class CarsController : Controller
 
         if (vm.Year < engine.CarGeneration.YearFrom || vm.Year > Math.Max(engine.CarGeneration.YearFrom, engine.CarGeneration.YearTo))
             ModelState.AddModelError(nameof(vm.Year), "Годината е извън периода на производство на това поколение.");
+        else if ((engine.YearFrom.HasValue && vm.Year < engine.YearFrom) || (engine.YearTo.HasValue && vm.Year > engine.YearTo))
+            ModelState.AddModelError(nameof(vm.CarEngineId), $"Този двигател е предлаган {engine.YearFrom}–{engine.YearTo} г. Изберете друга година или двигател.");
 
         return engine;
     }
@@ -292,11 +294,12 @@ public class CarsController : Controller
             if (gen != null)
                 vm.Years = CatalogController.YearsOf(gen).Select(y => new SelectListItem(y.ToString(), y.ToString())).ToList();
 
-            vm.Engines = (await CatalogController.EngineOptionsAsync(_context, vm.GenerationId.Value))
-                .Select(e => new SelectListItem(e.name, e.id)).ToList();
+            if (vm.Year.HasValue)
+                vm.Engines = (await CatalogController.EngineOptionsAsync(_context, vm.GenerationId.Value, vm.Year))
+                    .Select(e => new SelectListItem(e.name, e.id)).ToList();
 
-            if (!string.IsNullOrEmpty(vm.EngineName))
-                vm.Variants = (await CatalogController.VariantOptionsAsync(_context, vm.GenerationId.Value, vm.EngineName))
+            if (vm.Year.HasValue && !string.IsNullOrEmpty(vm.EngineName))
+                vm.Variants = (await CatalogController.VariantOptionsAsync(_context, vm.GenerationId.Value, vm.EngineName, vm.Year))
                     .Select(v => new SelectListItem(v.name, v.id.ToString())).ToList();
         }
     }

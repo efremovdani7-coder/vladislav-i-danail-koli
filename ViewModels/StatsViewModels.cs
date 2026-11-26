@@ -71,27 +71,52 @@ public class CompareSlot
 {
     public int? BrandId { get; set; }
     public int? ModelId { get; set; }
+    public int? GenerationId { get; set; }
     public List<SelectListItem> Models { get; set; } = new();
+    public List<SelectListItem> Generations { get; set; } = new();
 }
 
-public class CompareResult
+/// <summary>Размерите, които се показват (може да са взети от съседно поколение).</summary>
+public class CarSizes
 {
-    public CarModel Model { get; set; } = null!;
-    public ReliabilityStats Stats { get; set; } = new();
-    public ReliabilityStats OldStats { get; set; } = new();
-    public ReliabilityStats NewStats { get; set; } = new();
-    public int? YearFrom { get; set; }
-    public int? YearTo { get; set; }
+    public int? Length { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public int? Wheelbase { get; set; }
+    public int? Clearance { get; set; }
+    public int? Cargo { get; set; }
+    public int? Weight { get; set; }
+    public bool Approximate { get; set; }
+    public string? TakenFrom { get; set; }
+    public bool HasMain => Length.HasValue && Height.HasValue;
+}
+
+public class CompareCar
+{
+    public CarGeneration Generation { get; set; } = null!;
+    public string Title => $"{Generation.CarModel?.CarBrand?.Name} {Generation.Name}";
+    public CarSizes Sizes { get; set; } = new();
+    public ReliabilityStats GenerationStats { get; set; } = new();
+    public ReliabilityStats ModelStats { get; set; } = new();
+    public int? MinPowerHp { get; set; }
+    public int? MaxPowerHp { get; set; }
+    public int EngineCount { get; set; }
+    public List<string> Fuels { get; set; } = new();
 }
 
 public class CompareViewModel
 {
-    public List<CompareSlot> Slots { get; set; } = new();
+    public CompareSlot A { get; set; } = new();
+    public CompareSlot B { get; set; } = new();
     public List<SelectListItem> Brands { get; set; } = new();
-    public int SplitYear { get; set; } = 2010;
-    public List<CompareResult> Results { get; set; } = new();
+    public CompareCar? CarA { get; set; }
+    public CompareCar? CarB { get; set; }
 
-    /// <summary>Средна оценка по десетилетия на производство (по-старите по-здрави ли са?).</summary>
+    /// <summary>Текстово обобщение на разликите (като в carsized.com).</summary>
+    public List<string> Summary { get; set; } = new();
+
+    /// <summary>Индекс на надеждност по десетилетия на производство (по-старите по-здрави ли са?).</summary>
     public ChartSeries ByDecade { get; set; } = new();
     public string ByDecadeTitle { get; set; } = "всички марки";
+    public int? DecadeBrandId { get; set; }
 }

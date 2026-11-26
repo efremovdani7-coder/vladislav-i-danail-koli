@@ -46,9 +46,30 @@ public class CarGeneration
     public int YearFrom { get; set; }
     public int YearTo { get; set; }
 
+    [Display(Name = "Купе")]
+    public BodyType BodyType { get; set; }
+
+    // Размери (за сравнението на размерите)
+    public int? LengthMm { get; set; }
+    public int? WidthMm { get; set; }
+    public int? HeightMm { get; set; }
+    public int? WheelbaseMm { get; set; }
+    public int? GroundClearanceMm { get; set; }
+    public int? CargoLiters { get; set; }
+    public int? WeightKg { get; set; }
+
+    /// <summary>true = размерите са взети от съседно поколение на същия модел.</summary>
+    public bool SizesApproximate { get; set; }
+
+    /// <summary>Откъде са данните: "autoevolution" или "EPA" (FuelEconomy.gov, САЩ).</summary>
+    [StringLength(30)]
+    public string Source { get; set; } = CatalogSources.AutoEvolution;
+
     public ICollection<CarEngine> Engines { get; set; } = new List<CarEngine>();
 
-    public string DisplayName => YearFrom == YearTo ? $"{Name} ({YearFrom})" : $"{Name} ({YearFrom}–{YearTo})";
+    public string Years => YearFrom == YearTo ? $"{YearFrom}" : $"{YearFrom}–{YearTo}";
+    public string DisplayName => $"{Name} ({Years})" + (Source == CatalogSources.Epa ? " · САЩ" : "");
+    public bool HasSizes => LengthMm.HasValue && WidthMm.HasValue && HeightMm.HasValue;
 }
 
 /// <summary>Един ред = двигател + скоростна кутия + задвижване (вариант от каталога).</summary>
@@ -82,4 +103,37 @@ public class CarEngine
     [Required, StringLength(50)]
     [Display(Name = "Задвижване")]
     public string DriveType { get; set; } = string.Empty;
+
+    /// <summary>Години, в които е предлаган този двигател (null = през цялото поколение).</summary>
+    public int? YearFrom { get; set; }
+    public int? YearTo { get; set; }
+}
+
+public static class CatalogSources
+{
+    public const string AutoEvolution = "autoevolution";
+    public const string Epa = "EPA";
+}
+
+/// <summary>Дневник на импортите от публичните бази данни.</summary>
+public class CatalogImport
+{
+    public int Id { get; set; }
+
+    [StringLength(100)]
+    public string Source { get; set; } = string.Empty;
+
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? FinishedAt { get; set; }
+
+    [StringLength(30)]
+    public string Status { get; set; } = "Работи";
+
+    [StringLength(1000)]
+    public string? Message { get; set; }
+
+    public int BrandsAdded { get; set; }
+    public int ModelsAdded { get; set; }
+    public int GenerationsAdded { get; set; }
+    public int EnginesAdded { get; set; }
 }

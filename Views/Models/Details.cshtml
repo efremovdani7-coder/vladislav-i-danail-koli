@@ -31,7 +31,7 @@
 
         <div class="d-flex flex-wrap gap-2">
             <a asp-controller="Cars" asp-action="Create" asp-route-modelId="@Model.Model.Id" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Добави отзив за @name</a>
-            <a asp-controller="Compare" asp-action="Index" asp-route-modelIds="@Model.Model.Id" class="btn btn-outline-primary"><i class="bi bi-layout-split me-1"></i>Сравни</a>
+            <a asp-controller="Compare" asp-action="Index" asp-route-a="@(gens.OrderByDescending(g => g.HasSizes).ThenByDescending(g => g.YearTo).FirstOrDefault()?.Id)" class="btn btn-outline-primary"><i class="bi bi-rulers me-1"></i>Сравни размерите</a>
             @if (signedIn)
             {
                 if (Model.IsFollowing)
@@ -166,6 +166,19 @@
                     </h2>
                     <div id="gen-@g.Id" class="accordion-collapse collapse @(i == 0 ? "show" : "")" data-bs-parent="#gens">
                         <div class="accordion-body p-0">
+                            <div class="d-flex flex-wrap align-items-center gap-3 px-3 py-2 small border-bottom">
+                                <span><i class="bi bi-car-front me-1 text-primary"></i>@EnumText.Body(g.BodyType)</span>
+                                @if (g.HasSizes)
+                                {
+                                    <span><i class="bi bi-rulers me-1 text-primary"></i>@(g.LengthMm / 1000.0)×@(g.WidthMm / 1000.0)×@(g.HeightMm / 1000.0) м@(g.SizesApproximate ? " (прибл.)" : "")</span>
+                                }
+                                @if (g.CargoLiters.HasValue)
+                                {
+                                    <span><i class="bi bi-box-seam me-1 text-primary"></i>@g.CargoLiters л</span>
+                                }
+                                <span class="text-body-secondary">@(g.Source == CatalogSources.Epa ? "Източник: FuelEconomy.gov (САЩ)" : "Източник: autoevolution.com")</span>
+                                <a asp-controller="Compare" asp-action="Index" asp-route-a="@g.Id" class="ms-auto btn btn-sm btn-outline-primary py-0"><i class="bi bi-rulers me-1"></i>Сравни</a>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm mb-0 small">
                                     <thead><tr><th>Двигател</th><th>Гориво</th><th class="d-none d-md-table-cell">Мощност</th><th>Скоростни кутии</th></tr></thead>

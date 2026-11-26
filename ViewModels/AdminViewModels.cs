@@ -14,6 +14,23 @@ public class AdminDashboardViewModel
     public string? FilterUser { get; set; }
 }
 
+public class AdminCatalogViewModel
+{
+    public int Brands { get; set; }
+    public int Models { get; set; }
+    public int AutoEvolutionGenerations { get; set; }
+    public int EpaGenerations { get; set; }
+    public int AutoEvolutionEngines { get; set; }
+    public int EpaEngines { get; set; }
+    public int GenerationsWithSizes { get; set; }
+    public List<CatalogImport> Imports { get; set; } = new();
+    public bool ImportRunning { get; set; }
+    public int TestUsers { get; set; }
+    public int TestEntries { get; set; }
+    public string DatabaseDescription { get; set; } = string.Empty;
+    public string? DatabaseWarning { get; set; }
+}
+
 public class AdminUserRow
 {
     public ApplicationUser User { get; set; } = null!;

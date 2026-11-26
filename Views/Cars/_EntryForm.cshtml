@@ -3,6 +3,19 @@
 <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
 <h5 class="mb-3 text-primary"><i class="bi bi-car-front me-2"></i>1. Изберете автомобила</h5>
+
+<!-- Попълване по VIN номер (публична база NHTSA vPIC) -->
+<div class="card bg-primary-subtle border-0 mb-3">
+    <div class="card-body py-3">
+        <label for="vin-input" class="form-label fw-semibold mb-1"><i class="bi bi-upc-scan me-1"></i>Попълни автоматично по VIN номер <span class="fw-normal text-body-secondary">(по желание)</span></label>
+        <div class="input-group">
+            <input id="vin-input" class="form-control text-uppercase" maxlength="17" autocomplete="off" aria-describedby="vin-help" />
+            <button id="vin-button" class="btn btn-primary" type="button"><i class="bi bi-search me-1"></i>Разчети</button>
+        </div>
+        <div id="vin-help" class="form-text">VIN номерът (17 символа) е в талона на колата. Разчита се чрез публичната база NHTSA vPIC — най-пълни са данните за коли, продавани в САЩ.</div>
+        <div id="vin-result" class="small mt-2 d-none"></div>
+    </div>
+</div>
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <label asp-for="BrandId" class="form-label"></label>
@@ -35,7 +48,7 @@
     <div class="col-md-5">
         <label asp-for="EngineName" class="form-label"></label>
         <select asp-for="EngineName" asp-items="Model.Engines" class="form-select" disabled="@(!Model.Engines.Any())">
-            <option value="">@(Model.Engines.Any() ? "— Изберете двигател —" : "— Първо изберете поколение —")</option>
+            <option value="">@(Model.Engines.Any() ? "— Изберете двигател —" : "— Първо изберете година —")</option>
         </select>
         <span asp-validation-for="EngineName" class="text-danger small"></span>
     </div>

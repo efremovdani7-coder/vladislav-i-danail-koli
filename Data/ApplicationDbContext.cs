@@ -25,6 +25,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<LoginRecord> LoginRecords => Set<LoginRecord>();
+    public DbSet<CatalogImport> CatalogImports => Set<CatalogImport>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -40,6 +41,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne(m => m.CarBrand).WithMany(b => b.Models).HasForeignKey(m => m.CarBrandId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<CarGeneration>(e =>
+            e.HasIndex(g => new { g.CarModelId, g.Source }));
         builder.Entity<CarGeneration>(e =>
             e.HasOne(g => g.CarModel).WithMany(m => m.Generations).HasForeignKey(g => g.CarModelId).OnDelete(DeleteBehavior.Cascade));
 
